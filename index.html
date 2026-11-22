@@ -240,7 +240,7 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
       <div class="weather-meta" id="wMeta">福井市の天気を取得しています。</div>
     </article>
     <article class="panel">
-      <div class="panel-label"><span>SYSTEM</span><span>v2.12</span></div>
+      <div class="panel-label"><span>SYSTEM</span><span>v2.13</span></div>
       <div class="sys-list">
         <div><span>頭脳</span><b id="sysBrain">LOCAL</b></div>
         <div><span>音声入力</span><b id="sysVoiceIn">CHECK</b></div>
@@ -277,7 +277,7 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
     <button class="send" type="submit">送信</button>
   </form>
 
-  <footer class="footer"><span id="footerStatus">STATUS: STANDBY</span><span>v2.12 · VOICE: FEMALE / JA-JP</span></footer>
+  <footer class="footer"><span id="footerStatus">STATUS: STANDBY</span><span>v2.13 · VOICE: FEMALE / JA-JP</span></footer>
 </div>
 
 <div class="guide-backdrop" id="voiceGuide" role="alertdialog" aria-modal="true" aria-label="音声入力の案内">
@@ -296,7 +296,7 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
 
 <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-label="頭脳の設定">
   <div class="modal">
-    <h2>⚙ 頭脳の設定（v2.12）</h2>
+    <h2>⚙ 頭脳の設定（v2.13）</h2>
     <p class="sub">APIキーを入れると、むぎと自由に会話できるようになります。キーがない間は、これまで通り定型応答で動きます。</p>
 
     <label class="flabel" for="providerSelect">使う頭脳（AIプロバイダ）</label>
@@ -1051,64 +1051,68 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
   if(vgClose) vgClose.addEventListener('click',function(){ hideVoiceGuide(); textInput.focus(); });
   if(voiceGuide) voiceGuide.addEventListener('click',function(e){ if(e.target===voiceGuide) hideVoiceGuide(); });
   var rec=null, srUsable=false, srWatchdog=null, srGotResult=false, srErrorShown=false, srStarted=false, srIntentionalStop=false, srStarting=false;
-  var srEndTimer=null, srSilenceTimer=null, srSession=0, srSilenceStopped=false;
+  var srHardTimer=null, srTimedOut=false, srWantStart=false;
   var micTapHandler=null;
   function srResetButton(){ isListening=false; srStarting=false; micBtn.classList.remove('listening'); micBtn.classList.remove('starting'); micBtn.textContent='🎙'; }
   function clearSrTimers(){
-    if(srEndTimer){ clearTimeout(srEndTimer); srEndTimer=null; }
-    if(srSilenceTimer){ clearTimeout(srSilenceTimer); srSilenceTimer=null; }
+    if(srWatchdog){ clearTimeout(srWatchdog); srWatchdog=null; }
+    if(srHardTimer){ clearTimeout(srHardTimer); srHardTimer=null; }
+  }
+  // ---- Listening redesign (v2.13): one single-shot session, one exit ----
+  // Recognition runs in single-shot mode (continuous=false). Interim
+  // results are DISPLAY ONLY — they never decide when the session ends.
+  // A session ends in exactly four ways, and every one of them funnels
+  // into finishListening(), the single exit point below:
+  //   1. a final result arrives (onresult),
+  //   2. an error arrives (onerror -> srFail),
+  //   3. the user taps the core / mic again (immediate forced stop),
+  //   4. the hard timer armed at onstart fires (absolute cap).
+  // finishListening() resets flags, button, interim line and the visual
+  // state SYNCHRONOUSLY. It never waits for onend: iOS Safari frequently
+  // never fires onend (after stop(), after abort(), sometimes even after
+  // a final result), and v2.10–v2.12 all left the core red forever by
+  // chaining the reset behind events or grace timers that never came.
+  // onend still calls finishListening(), where it is a harmless no-op
+  // once the session is already closed.
+  function finishListening(){
+    clearSrTimers();
+    var wasActive=isListening||srStarted||srStarting;
+    var hadResult=srGotResult, hadError=srErrorShown, intentional=srIntentionalStop, timedOut=srTimedOut;
+    srResetButton();
+    srStarted=false; srWantStart=false; srIntentionalStop=false; srTimedOut=false;
+    interimLine.textContent='';
+    if(wasActive && !hadResult && !hadError){
+      if(timedOut) addMsg('mugi','うまく聞き取れなかったので、聞き取りを終えました。もう一度マイクを押して話してください。');
+      else if(!intentional) addMsg('mugi','聞き取りが終わりましたが、声が入りませんでした。もう一度マイクを押して、はっきり話してみてください。');
+    }
+    // Back to standby visuals (red core / red tint off) unless a reply is
+    // already being thought about or spoken — those states own the core.
+    if(coreWrap.className.indexOf('speaking')===-1 && coreWrap.className.indexOf('thinking')===-1)
+      setState('idle','STANDBY','待機中 — お呼びください');
+  }
+  // Forced stop: abort the recognition session AND reset the UI in the
+  // same synchronous step. No grace timer, no waiting for onend.
+  function hardStopListening(intentional){
+    if(intentional) srIntentionalStop=true;
+    if(rec){ try{ rec.abort(); }catch(e){ try{ rec.stop(); }catch(e2){} } }
+    finishListening();
   }
   function srFail(message,showGuide){
-    if(srWatchdog){ clearTimeout(srWatchdog); srWatchdog=null; }
-    clearSrTimers();
-    srResetButton(); interimLine.textContent='';
-    setState('idle','STANDBY','待機中 — お呼びください');
+    finishListening();
     if(message) addMsg('mugi',message);
     if(showGuide) showVoiceGuide();
   }
-  // Single exit point for the listening UI. iOS Safari's recognition does
-  // not reliably fire onend (see forceReleaseMic), so onend and the
-  // force-release timer both funnel here; running it twice is harmless.
-  function finishListening(){
-    if(srWatchdog){ clearTimeout(srWatchdog); srWatchdog=null; }
-    clearSrTimers();
-    var wasActive=isListening||srStarted;
-    srResetButton(); interimLine.textContent='';
-    if(wasActive && !srGotResult && !srErrorShown && !srIntentionalStop){
-      addMsg('mugi','聞き取りが終わりましたが、声が入りませんでした。もう一度マイクを押して、はっきり話してみてください。');
-    } else if(wasActive && !srGotResult && !srErrorShown && srSilenceStopped){
-      addMsg('mugi','うまく聞き取れなかったので、聞き取りを終えました。もう一度マイクを押して話してください。');
-    }
-    srStarted=false; srIntentionalStop=false; srSilenceStopped=false;
-    if(coreWrap.className.indexOf('speaking')===-1 && coreWrap.className.indexOf('thinking')===-1) setState('idle','STANDBY','待機中 — お呼びください');
-  }
-  // iOS Safari often never fires onend after stop() — and sometimes not
-  // after a final result either — leaving the mic hot and the button red
-  // forever, and (because the audio session stays in record mode) the
-  // reply speech inaudible. If onend has not arrived ~1.3s after we asked
-  // recognition to stop, release everything ourselves.
-  function forceReleaseMic(){
-    if(srEndTimer) clearTimeout(srEndTimer);
-    var sess=srSession;
-    srEndTimer=setTimeout(function(){
-      srEndTimer=null;
-      if(sess!==srSession) return;
-      if(isListening||srStarted){ try{ rec.abort(); }catch(e){} finishListening(); }
-    },1300);
-  }
-  function stopRecognition(){
-    srIntentionalStop=true;
-    try{ rec.stop(); }catch(e){}
-    forceReleaseMic();
-  }
-  // The user finished talking but only interim results arrived and the
-  // session hangs: end it a few seconds after the last result event.
-  function armSilenceTimer(){
-    if(srSilenceTimer) clearTimeout(srSilenceTimer);
-    srSilenceTimer=setTimeout(function(){
-      srSilenceTimer=null;
-      if(isListening && !srGotResult){ srSilenceStopped=true; stopRecognition(); }
-    },4000);
+  // Hard cap on one listening session, armed the moment listening starts.
+  // Even if NO recognition event ever arrives again — no result, no
+  // error, no onend — this fires, aborts the session and returns the UI
+  // to standby. 15s is far longer than one spoken command ever needs.
+  var SR_HARD_LIMIT_MS=15000;
+  function armHardTimer(){
+    if(srHardTimer) clearTimeout(srHardTimer);
+    srHardTimer=setTimeout(function(){
+      srHardTimer=null;
+      if(isListening||srStarted){ srTimedOut=!srGotResult; hardStopListening(false); }
+    },SR_HARD_LIMIT_MS);
   }
   try{
     if(SR){ rec=new SR(); rec.lang='ja-JP'; rec.interimResults=true; rec.continuous=false; srUsable=true; }
@@ -1116,12 +1120,19 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
   if(srUsable){
     sysVoiceIn.textContent='READY';
     rec.onstart=function(){
+      // A late onstart for a start that was already given up on (watchdog
+      // failure or a toggle-stop during startup) must not resurrect the
+      // red listening state — kill that session instead.
+      if(!srWantStart){ try{ rec.abort(); }catch(e){} return; }
+      srWantStart=false;
       if(srWatchdog){ clearTimeout(srWatchdog); srWatchdog=null; }
-      srSession++; clearSrTimers(); srSilenceStopped=false;
       srStarted=true; srStarting=false; isListening=true;
       micBtn.classList.remove('starting'); micBtn.classList.add('listening'); micBtn.textContent='●';
       interimLine.textContent='▶ 聞き取り中… 話してください';
       setState('listening','LISTENING','聞き取り中 — 話してください');
+      // From this moment the session has an absolute cap, whatever the
+      // recogniser does or does not report back.
+      armHardTimer();
     };
     rec.onresult=function(ev){
       var interim='', finalTxt='';
@@ -1129,17 +1140,18 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
         if(ev.results[i].isFinal) finalTxt+=ev.results[i][0].transcript;
         else interim+=ev.results[i][0].transcript;
       }
-      if(interim) interimLine.textContent='▶ '+interim;
+      // Interim text is shown only. It never arms a timer and never ends
+      // or extends the session (v2.12's interim-driven silence timer let
+      // stray interim noise keep the mic red indefinitely).
+      if(interim && !finalTxt) interimLine.textContent='▶ '+interim;
       if(finalTxt){
         srGotResult=true; interimLine.textContent='';
-        // Release the mic BEFORE replying. Do not rely on the browser to
-        // end the session after a final result — iOS Safari often leaves
-        // it running (mic stays red), and no reply speech can be heard
-        // while the record session stays open.
-        stopRecognition();
+        // End the session and reset the UI FIRST, synchronously, before
+        // replying: abort + finishListening() right here, not via onend.
+        // While a record session stays open on iOS the core stays red
+        // and reply speech cannot be heard.
+        hardStopListening(true);
         addMsg('user',finalTxt); try{ respond(finalTxt); }catch(err){ addMsg('mugi','送信の処理でエラーが発生しました。もう一度お試しください。'); }
-      } else if(interim){
-        armSilenceTimer();
       }
     };
     rec.onend=function(){ finishListening(); };
@@ -1151,14 +1163,13 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
     };
     var onMicTap=function(){
       unlockAudio();
-      if(isListening){ stopRecognition(); return; }
-      // A start is already in flight (onstart not fired yet): a second tap
-      // here would make rec.start() throw InvalidStateError and wrongly
-      // dump the user into the "voice input unavailable" guide.
-      if(srStarting) return;
-      srStarting=true;
+      // Toggle: while the core is red (starting OR listening), one tap
+      // force-stops recognition and returns the UI to standby in the
+      // same tap — no waiting for onend or any timer.
+      if(isListening||srStarted||srStarting){ hardStopListening(true); return; }
+      srStarting=true; srWantStart=true;
       // Immediate visible feedback the moment the button is tapped — never silent.
-      srGotResult=false; srErrorShown=false; srStarted=false; srIntentionalStop=false;
+      srGotResult=false; srErrorShown=false; srStarted=false; srIntentionalStop=false; srTimedOut=false;
       micBtn.classList.add('starting'); micBtn.textContent='…';
       interimLine.textContent='▶ マイクを起動しています…';
       setState('listening','STARTING','マイクを起動しています…');
@@ -1172,7 +1183,7 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
       srWatchdog=setTimeout(function(){
         srWatchdog=null;
         if(!srStarted && !isListening){
-          try{ rec.stop(); }catch(e){}
+          try{ rec.abort(); }catch(e){}
           srFail('音声認識が始まりませんでした。この開き方では音声入力が使えない可能性があります。',true);
         }
       },2000);
