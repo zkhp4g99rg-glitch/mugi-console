@@ -240,7 +240,7 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
       <div class="weather-meta" id="wMeta">福井市の天気を取得しています。</div>
     </article>
     <article class="panel">
-      <div class="panel-label"><span>SYSTEM</span><span>v2.11</span></div>
+      <div class="panel-label"><span>SYSTEM</span><span>v2.12</span></div>
       <div class="sys-list">
         <div><span>頭脳</span><b id="sysBrain">LOCAL</b></div>
         <div><span>音声入力</span><b id="sysVoiceIn">CHECK</b></div>
@@ -277,7 +277,7 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
     <button class="send" type="submit">送信</button>
   </form>
 
-  <footer class="footer"><span id="footerStatus">STATUS: STANDBY</span><span>v2.11 · VOICE: FEMALE / JA-JP</span></footer>
+  <footer class="footer"><span id="footerStatus">STATUS: STANDBY</span><span>v2.12 · VOICE: FEMALE / JA-JP</span></footer>
 </div>
 
 <div class="guide-backdrop" id="voiceGuide" role="alertdialog" aria-modal="true" aria-label="音声入力の案内">
@@ -296,7 +296,7 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
 
 <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-label="頭脳の設定">
   <div class="modal">
-    <h2>⚙ 頭脳の設定（v2.11）</h2>
+    <h2>⚙ 頭脳の設定（v2.12）</h2>
     <p class="sub">APIキーを入れると、むぎと自由に会話できるようになります。キーがない間は、これまで通り定型応答で動きます。</p>
 
     <label class="flabel" for="providerSelect">使う頭脳（AIプロバイダ）</label>
@@ -552,38 +552,19 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
     speak('声を変更しました。むぎです。よろしくお願いします。');
   });
 
-  // ---- Speech engine (v2.11): ONE path for the test button and replies ----
-  // Device finding: the voice-test button DID speak, so speechSynthesis
-  // itself, the volume and the device settings are all fine — only the
-  // reply path was silent. The test button speaks synchronously inside
-  // the tap; replies were spoken asynchronously after the response
-  // arrived, and iOS silently drops those. There is now exactly one
-  // speech entry point, speak(), used by the test button, the greeting
-  // and every reply, with the countermeasures the async path needs:
-  //  - text is split into short sentence chunks, queued one at a time
-  //    (long utterances and a deep native queue are where iOS loses
-  //    speech, and one stuck chunk must not mute the whole reply);
-  //  - a watchdog calls speechSynthesis.resume() every 500ms while a
-  //    chunk is active (iOS randomly pauses the synth mid-queue);
-  //  - after cancel(), the first chunk of a reply is spoken ~90ms
-  //    later, never in the same task — an utterance spoken synchronously
-  //    right after cancel() outside a user gesture is the classic iOS
-  //    silent drop. Calls made inside a tap (test button) pass
-  //    fromGesture=true and speak immediately, like the old test path;
-  //  - a chunk that never fires onstart is re-spoken once after a queue
-  //    reset, then skipped;
-  //  - the ja-JP voice is chosen explicitly, and if the voice list is
-  //    not loaded yet, speaking waits for voiceschanged first.
+  // ---- Speech (v2.12): back to the simplest possible form ----
+  // v2.11 unified all speech into a queued engine: sentence chunking,
+  // a resume() watchdog, stall detection with re-speak, a 90ms delayed
+  // start after cancel(), and waiting for voiceschanged before
+  // speaking. That regressed speech entirely — even the voice-test
+  // button, which spoke at an intermediate v2.11 stage, went silent.
+  // All of that machinery is removed. speak() now does exactly what
+  // the working test-button path did: build ONE utterance for the
+  // whole text and call speechSynthesis.speak() on it directly and
+  // immediately. No queue of our own, no chunking, no timers, no
+  // waiting for the voice list. The browser's own queue sequences
+  // streamed sentences (calls with more=true skip the cancel()).
   var audioUnlocked=false, pendingSpeech=null;
-  var speechQueue=[], speechBusy=false, speechGen=0, speechWatchdog=null, speechStallTimer=null;
-  function ensureVoices(cb){
-    if(!('speechSynthesis' in window)){ cb(); return; }
-    if(speechSynthesis.getVoices().length){ populateVoices(); cb(); return; }
-    var done=false;
-    var finish=function(){ if(done) return; done=true; populateVoices(); cb(); };
-    speechSynthesis.addEventListener('voiceschanged',finish);
-    setTimeout(finish,1200);
-  }
   function pickJaVoice(){
     var voices=speechSynthesis.getVoices();
     var selVal=document.getElementById('voiceSelect').value;
@@ -596,80 +577,11 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
     if(selectedVoice) return selectedVoice;
     return voices[0]||null;
   }
-  function chunkText(text){
-    var raw=String(text||'').match(/[^。！？!?…\n]+[。！？!?…]?/g)||[];
-    var chunks=[], buf='';
-    function flush(){ var t=buf.trim(); if(t) chunks.push(t); buf=''; }
-    raw.forEach(function(piece){
-      var segs=piece.split('、');
-      segs.forEach(function(seg,i){
-        var add=(i<segs.length-1)? seg+'、' : seg;
-        if(buf && (buf+add).length>70) flush();
-        buf+=add;
-        if(buf.length>=45) flush();
-      });
-    });
-    flush();
-    return chunks;
-  }
   function speechSetIdle(){
     if(coreWrap.className.indexOf('listening')===-1 && coreWrap.className.indexOf('thinking')===-1)
       setState('idle','STANDBY','待機中 — お呼びください');
   }
-  function startSpeechWatchdog(){
-    if(speechWatchdog) return;
-    speechWatchdog=setInterval(function(){
-      if(!speechBusy){ stopSpeechWatchdog(); return; }
-      try{ if(speechSynthesis.paused || speechSynthesis.speaking) speechSynthesis.resume(); }catch(e){}
-    },500);
-  }
-  function stopSpeechWatchdog(){ if(speechWatchdog){ clearInterval(speechWatchdog); speechWatchdog=null; } }
-  function clearStallTimer(){ if(speechStallTimer){ clearTimeout(speechStallTimer); speechStallTimer=null; } }
-  function pumpSpeech(gen){
-    if(gen!==speechGen || speechBusy) return;
-    var chunk=speechQueue.shift();
-    if(!chunk){
-      // Queue drained: settle back to idle shortly after (a streamed
-      // reply may still push its next sentence into the gap).
-      setTimeout(function(){ if(gen===speechGen && !speechBusy && !speechQueue.length) speechSetIdle(); },300);
-      return;
-    }
-    speechBusy=true;
-    if(!chunk.silent) setState('speaking','SPEAKING','応答中 — 読み上げています');
-    startSpeechWatchdog();
-    var started=false, settled=false;
-    var u=new SpeechSynthesisUtterance(chunk.text);
-    u.lang='ja-JP';
-    u.volume=(typeof chunk.volume==='number')? chunk.volume : 1;
-    u.rate=chunk.rate||1.02; u.pitch=1.15;
-    var v=pickJaVoice(); if(v) u.voice=v;
-    function done(){
-      if(settled) return; settled=true;
-      if(gen!==speechGen) return;
-      clearStallTimer(); speechBusy=false;
-      pumpSpeech(gen);
-    }
-    u.onstart=function(){ started=true; };
-    u.onend=done;
-    u.onerror=done;
-    try{ speechSynthesis.speak(u); }catch(e){ done(); return; }
-    if(speechSynthesis.paused){ try{ speechSynthesis.resume(); }catch(e){} }
-    // Stall detection: iOS sometimes accepts an utterance and then
-    // never starts it (no onstart, no error, synth idle). Reset the
-    // queue and re-speak this chunk once; if it stalls again, skip it
-    // so the rest of the reply is still heard.
-    clearStallTimer();
-    speechStallTimer=setTimeout(function(){
-      speechStallTimer=null;
-      if(settled || started || gen!==speechGen) return;
-      if(speechSynthesis.speaking) return;
-      try{ speechSynthesis.cancel(); }catch(e){}
-      speechBusy=false;
-      if(!chunk.retried){ chunk.retried=true; speechQueue.unshift(chunk); }
-      setTimeout(function(){ pumpSpeech(gen); },90);
-    },1400);
-  }
-  function speak(text,more,fromGesture){
+  function speak(text,more){
     if(!('speechSynthesis' in window) || !ttsEnabled){ if(!more) speechSetIdle(); return; }
     if(!audioUnlocked){
       // Before the first tap iOS will not sound anything; keep only the
@@ -677,30 +589,23 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
       if(!more){ pendingSpeech=text; setState('idle','STANDBY','画面を一度タップすると声が出ます'); }
       return;
     }
-    var gen;
-    if(more){ gen=speechGen; }
-    else {
-      // New reply: stop whatever is queued, then let pumpSpeech start
-      // after the cancel() has settled (see the header comment).
-      gen=++speechGen;
-      speechQueue.length=0; speechBusy=false; clearStallTimer();
-      try{ speechSynthesis.cancel(); }catch(e){}
-    }
-    ensureVoices(function(){
-      if(gen!==speechGen) return;
-      chunkText(text).forEach(function(t){ speechQueue.push({text:t}); });
-      if(more || fromGesture) pumpSpeech(gen);
-      else setTimeout(function(){ pumpSpeech(gen); },90);
-    });
+    if(!more){ try{ speechSynthesis.cancel(); }catch(e){} }
+    var u=new SpeechSynthesisUtterance(text);
+    u.lang='ja-JP';
+    u.rate=1.02; u.pitch=1.15;
+    var v=pickJaVoice(); if(v) u.voice=v;
+    setState('speaking','SPEAKING','応答中 — 読み上げています');
+    function settle(){ if(!speechSynthesis.speaking && !speechSynthesis.pending) speechSetIdle(); }
+    u.onend=settle;
+    u.onerror=settle;
+    try{ speechSynthesis.speak(u); }catch(e){ speechSetIdle(); }
   }
   function stopSpeech(){
-    speechGen++;
-    speechQueue.length=0; speechBusy=false; clearStallTimer(); stopSpeechWatchdog();
     if('speechSynthesis' in window){ try{ speechSynthesis.cancel(); }catch(e){} }
+    speechSetIdle();
   }
   function unlockAudio(ev){
     if(!('speechSynthesis' in window)) return;
-    if(speechSynthesis.paused) { try{ speechSynthesis.resume(); }catch(e){} }
     // If the very first tap is the mic button or the core, the user wants
     // to SPEAK, not to listen: drop the queued greeting instead of blasting
     // it over (and into) the start of speech recognition.
@@ -708,16 +613,16 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
     if(tapTarget && (micBtn.contains(tapTarget) || coreWrap.contains(tapTarget))) pendingSpeech=null;
     if(audioUnlocked) return;
     audioUnlocked=true;
-    // Speak the queued greeting RIGHT HERE, synchronously inside the tap,
-    // through the same speak() the replies use (fromGesture). iOS only
-    // honours speech that starts inside a user gesture; deferring it
-    // until the voice list loads moves it outside the gesture.
-    if(pendingSpeech){ var p=pendingSpeech; pendingSpeech=null; speak(p,false,true); return; }
-    // Nothing queued: prime the synth inside the tap with a silent chunk
-    // routed through the engine — if iOS wedges it, stall detection
-    // drops it instead of letting it jam every later utterance.
-    speechQueue.push({text:'むぎ', volume:0, rate:1.6, silent:true});
-    pumpSpeech(speechGen);
+    // Speak the queued greeting right here, synchronously inside the
+    // tap: iOS only honours speech that starts inside a user gesture.
+    if(pendingSpeech){ var p=pendingSpeech; pendingSpeech=null; speak(p); return; }
+    // Nothing queued: prime the synth inside the tap with one short
+    // silent utterance, spoken directly like everything else.
+    try{
+      var prime=new SpeechSynthesisUtterance('むぎ');
+      prime.lang='ja-JP'; prime.volume=0; prime.rate=1.6;
+      speechSynthesis.speak(prime);
+    }catch(e){}
   }
   document.addEventListener('pointerdown',unlockAudio);
   document.addEventListener('touchend',unlockAudio);
@@ -728,9 +633,9 @@ body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px r
     if(!('speechSynthesis' in window)){ addMsg('mugi','このブラウザでは読み上げ（音声合成）が使えません。Safariで開くと使える場合があります。'); return; }
     if(!ttsEnabled){ ttsEnabled=true; var tb=document.getElementById('ttsBtn'); tb.textContent='🔊 読み上げ ON'; tb.classList.add('active'); }
     // The exact same entry point replies use — speak() — called
-    // synchronously inside this tap (fromGesture), which is the
-    // configuration the device test proved working.
-    speak('音声テストです。むぎの声が聞こえていますか。聞こえたら準備完了です。',false,true);
+    // synchronously inside this tap, the configuration the device
+    // test proved working.
+    speak('音声テストです。むぎの声が聞こえていますか。聞こえたら準備完了です。');
   });
 
   // ---- TTS toggle ----
