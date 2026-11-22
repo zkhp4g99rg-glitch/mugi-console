@@ -1,0 +1,1359 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:,">
+<title>むぎコンソール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#02070d; --bg2:#04121e; --panel:#061a29; --panel2:#082233;
+  --line:rgba(0,229,255,.22); --line2:rgba(0,229,255,.12);
+  --cyan:#00e5ff; --cyan2:#00b7d4; --cyan-dim:#5edff5;
+  --text:#e8fbff; --muted:#8fb8c4; --muted2:#5d8795;
+  --user:#0e3a2e; --radius:18px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(900px 700px at 50% -120px, #0b3550 0%, var(--bg) 58%),radial-gradient(520px 380px at 88% 108%, rgba(0,140,190,.16) 0%, transparent 60%),radial-gradient(420px 320px at 8% 96%, rgba(0,229,255,.07) 0%, transparent 60%),var(--bg);color:var(--text);font-family:"Noto Sans JP",system-ui,-apple-system,sans-serif;overflow:hidden}
+button,input,select{min-height:44px}
+.mono{font-family:"Share Tech Mono",ui-monospace,monospace}
+.app{height:var(--vvh,100dvh);display:flex;flex-direction:column;max-width:560px;margin:0 auto;padding:calc(8px + env(safe-area-inset-top)) 14px calc(6px + env(safe-area-inset-bottom));gap:7px;position:relative;z-index:1;overflow:hidden}
+.app>*{flex-shrink:0}
+.top-scroll{flex:0 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:7px;position:relative;z-index:1;overscroll-behavior:contain}
+.top-scroll>*{flex-shrink:0}
+.top-scroll::-webkit-scrollbar{width:0;height:0}
+.app:before{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,229,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.035) 1px,transparent 1px);background-size:36px 36px;pointer-events:none;mask-image:linear-gradient(to bottom,black,transparent 82%)}
+.app:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px);pointer-events:none;z-index:0;opacity:.7}
+.scanbeam{position:absolute;left:0;right:0;height:90px;top:-90px;background:linear-gradient(180deg,transparent,rgba(0,229,255,.055),transparent);pointer-events:none;z-index:0;animation:beam 7s linear infinite}
+@keyframes beam{0%{transform:translateY(0)}100%{transform:translateY(120vh)}}
+#particles{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+#particles i{position:absolute;border-radius:50%;background:var(--cyan);opacity:.35;box-shadow:0 0 6px rgba(0,229,255,.8);animation:floatUp linear infinite}
+@keyframes floatUp{from{transform:translateY(12px)}to{transform:translateY(-46px)}}
+/* header */
+.top{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:36px;height:36px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;color:var(--cyan);font-size:18px;background:rgba(0,229,255,.06);box-shadow:0 0 18px rgba(0,229,255,.25) inset}
+.brand b{letter-spacing:.22em;font-size:13px;font-family:"Orbitron","Share Tech Mono",monospace}
+.brand span{display:block;letter-spacing:.18em;font-size:9px;color:var(--muted);font-weight:700}
+.sys-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:7px 10px;font-size:11px;letter-spacing:.12em;color:var(--cyan-dim);background:rgba(0,0,0,.25)}
+.dot{width:8px;height:8px;border-radius:50%;background:#2dffb3;box-shadow:0 0 10px #2dffb3}
+/* clock */
+.clock{text-align:center;position:relative;z-index:1;margin-top:2px}
+.clock-time{font-family:"Orbitron","Share Tech Mono",monospace;font-weight:700;font-size:clamp(40px,12vw,58px);line-height:.95;letter-spacing:.06em;color:#fff;text-shadow:0 0 10px rgba(0,229,255,.65),0 0 34px rgba(0,229,255,.45),0 0 70px rgba(0,229,255,.25)}
+.clock-date{margin-top:4px;font-weight:700;letter-spacing:.08em;font-size:14px;color:var(--cyan-dim)}
+.clock-sub{font-size:11px;letter-spacing:.22em;color:var(--muted2);margin-top:2px}
+/* core */
+.core-zone{display:flex;flex-direction:column;align-items:center;position:relative;z-index:1;padding:2px 0}
+.core-wrap{width:140px;height:140px;position:relative;display:grid;place-items:center;flex-shrink:0}
+@media(min-width:700px){.core-wrap{width:196px;height:196px}}
+.ring{position:absolute;border-radius:50%;pointer-events:none}
+.ring-outer{inset:0;border:1px solid rgba(0,229,255,.18);border-top-color:var(--cyan);border-bottom-color:rgba(0,229,255,.5);animation:spin 14s linear infinite}
+.ring-mid{inset:14px;border:1px dashed rgba(0,229,255,.35);animation:spinRev 10s linear infinite}
+.ring-inner{inset:30px;border:1px solid rgba(0,229,255,.25);border-left-color:var(--cyan);border-right-color:var(--cyan);animation:spin 7s linear infinite}
+.ring-seg{inset:-7px;background:conic-gradient(from 0deg,var(--cyan) 0deg 26deg,transparent 26deg 90deg,rgba(0,229,255,.55) 90deg 104deg,transparent 104deg 200deg,var(--cyan) 200deg 214deg,transparent 214deg 360deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));animation:spinRev 22s linear infinite;opacity:.85}
+.ring-halo{inset:-16px;border:1px solid rgba(0,229,255,.08);box-shadow:0 0 34px rgba(0,229,255,.10) inset}
+.core-data{position:absolute;font-family:"Share Tech Mono",monospace;font-size:8px;letter-spacing:.14em;color:rgba(94,223,245,.75);white-space:nowrap;pointer-events:none}
+.core-data.tl{top:6px;left:-8px}.core-data.tr{top:6px;right:-8px;text-align:right}
+.core-data.bl{bottom:6px;left:-8px}.core-data.br{bottom:6px;right:-8px;text-align:right}
+.core-wrap.listening .ring-outer{border-top-color:#ff4d6d;border-bottom-color:rgba(255,77,109,.6);animation-duration:2.4s}
+.core-wrap.listening .ring-seg{animation-duration:3s;opacity:1}
+.core-wrap.listening .core-data{color:#ff9db1}
+#ticks{position:absolute;inset:4px;animation:spin 40s linear infinite}
+.tick{position:absolute;left:50%;top:50%;width:1px;height:7px;background:rgba(0,229,255,.45);transform-origin:0 0}
+.core{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #bffcff 0%, #2ee6ff 28%, #009ec2 58%, #00394f 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#00141c;box-shadow:0 0 42px rgba(0,229,255,.55),0 0 90px rgba(0,229,255,.22),inset 0 0 28px rgba(255,255,255,.45);animation:pulse 3.2s ease-in-out infinite;z-index:2;text-align:center}
+.core strong{font-size:19px;letter-spacing:.16em;line-height:1;font-family:"Orbitron","Share Tech Mono",monospace;font-weight:900}
+.core small{font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.18em;margin-top:5px;font-weight:700}
+.wave{display:flex;gap:3px;height:14px;align-items:center;margin-top:6px;opacity:0;transition:.2s}
+.wave i{display:block;width:3px;background:#00394f;border-radius:99px;height:6px}
+.core-wrap.listening .core{animation:pulseFast .75s ease-in-out infinite}
+.core-wrap.listening .wave,.core-wrap.speaking .wave{opacity:1}
+.core-wrap.listening .wave i,.core-wrap.speaking .wave i{animation:waveAnim .55s ease-in-out infinite alternate}
+.core-wrap.listening .wave i:nth-child(2),.core-wrap.speaking .wave i:nth-child(2){animation-delay:.08s}.core-wrap.listening .wave i:nth-child(3),.core-wrap.speaking .wave i:nth-child(3){animation-delay:.16s}.core-wrap.listening .wave i:nth-child(4),.core-wrap.speaking .wave i:nth-child(4){animation-delay:.24s}.core-wrap.listening .wave i:nth-child(5),.core-wrap.speaking .wave i:nth-child(5){animation-delay:.32s}
+.core-wrap.speaking .core{animation:flicker .38s ease-in-out infinite}
+.core-wrap.thinking .ring-mid{animation-duration:1.6s}.core-wrap.thinking .ring-outer{animation-duration:2.2s}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes spinRev{to{transform:rotate(-360deg)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+@keyframes pulseFast{0%,100%{transform:scale(1)}50%{transform:scale(1.11)}}
+@keyframes flicker{0%,100%{filter:brightness(1)}50%{filter:brightness(1.28)}}
+@keyframes waveAnim{from{height:4px}to{height:14px}}
+/* ---- state colors: standby=cyan / listening=RED / thinking=amber / speaking=green ----
+   The whole screen re-tints per state so the change is unmissable at a glance. */
+#stateTint{position:fixed;inset:0;pointer-events:none;z-index:0;transition:background .45s ease}
+body.st-listening #stateTint{background:radial-gradient(760px 600px at 50% 30%, rgba(255,45,85,.30) 0%, rgba(255,45,85,.11) 46%, transparent 74%)}
+body.st-thinking #stateTint{background:radial-gradient(760px 600px at 50% 30%, rgba(255,179,0,.22) 0%, rgba(255,179,0,.08) 46%, transparent 74%)}
+body.st-speaking #stateTint{background:radial-gradient(760px 600px at 50% 30%, rgba(45,255,179,.22) 0%, rgba(45,255,179,.08) 46%, transparent 74%)}
+.core-wrap{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.core{cursor:pointer}
+.core-wrap.listening .core{background:radial-gradient(circle at 35% 30%, #ffe3e9 0%, #ff7d97 26%, #ff2e55 55%, #7d0c26 100%);color:#2b000d;box-shadow:0 0 54px rgba(255,46,85,.8),0 0 120px rgba(255,46,85,.38),inset 0 0 28px rgba(255,255,255,.4);animation:heartbeat 1.05s ease-in-out infinite}
+.core-wrap.listening .ring-mid{border-color:rgba(255,77,109,.55)}
+.core-wrap.listening .ring-inner{border-color:rgba(255,77,109,.4);border-left-color:#ff4d6d;border-right-color:#ff4d6d}
+.core-wrap.listening .ring-seg{background:conic-gradient(from 0deg,#ff4d6d 0deg 26deg,transparent 26deg 90deg,rgba(255,77,109,.55) 90deg 104deg,transparent 104deg 200deg,#ff4d6d 200deg 214deg,transparent 214deg 360deg)}
+.core-wrap.listening .ring-halo{border-color:rgba(255,77,109,.16);box-shadow:0 0 40px rgba(255,77,109,.22) inset}
+.core-wrap.listening .tick{background:rgba(255,120,150,.65)}
+.core-wrap.listening .wave i{background:#4d0213}
+@keyframes heartbeat{0%,100%{transform:scale(1)}14%{transform:scale(1.13)}28%{transform:scale(1.03)}42%{transform:scale(1.13)}60%{transform:scale(1)}}
+.core-wrap.thinking .core{background:radial-gradient(circle at 35% 30%, #fff3cf 0%, #ffd54d 30%, #ff9d00 58%, #5f3a00 100%);color:#241a00;box-shadow:0 0 48px rgba(255,179,0,.65),0 0 100px rgba(255,179,0,.28),inset 0 0 28px rgba(255,255,255,.4);animation:pulseFast .8s ease-in-out infinite}
+.core-wrap.thinking .ring-outer{border-top-color:#ffb300;border-bottom-color:rgba(255,179,0,.55)}
+.core-wrap.thinking .ring-mid{border-color:rgba(255,179,0,.5)}
+.core-wrap.thinking .ring-inner{border-left-color:#ffb300;border-right-color:#ffb300}
+.core-wrap.thinking .core-data{color:#ffd48a}
+.core-wrap.thinking .wave i{background:#3a2400}
+.core-wrap.speaking .core{background:radial-gradient(circle at 35% 30%, #dcfff2 0%, #5cffc4 28%, #00c98a 58%, #00402a 100%);color:#00241a;box-shadow:0 0 48px rgba(45,255,179,.6),0 0 100px rgba(45,255,179,.25),inset 0 0 28px rgba(255,255,255,.4)}
+.core-wrap.speaking .ring-outer{border-top-color:#2dffb3;border-bottom-color:rgba(45,255,179,.5)}
+.core-wrap.speaking .ring-inner{border-left-color:#2dffb3;border-right-color:#2dffb3}
+.core-wrap.speaking .core-data{color:#8affd9}
+.core-wrap.speaking .wave i{background:#003d28}
+body.st-listening .status-line{color:#ff8fa3;text-shadow:0 0 12px rgba(255,77,109,.65)}
+body.st-thinking .status-line{color:#ffd48a}
+body.st-speaking .status-line{color:#8affd9}
+body.st-listening .interim{color:#ff8fa3}
+body.st-listening .dot{background:#ff4d6d;box-shadow:0 0 12px #ff4d6d}
+body.st-thinking .dot{background:#ffb300;box-shadow:0 0 12px #ffb300}
+body.st-speaking .dot{background:#2dffb3;box-shadow:0 0 12px #2dffb3}
+body.st-listening .clock-time{text-shadow:0 0 10px rgba(255,77,109,.65),0 0 34px rgba(255,77,109,.45),0 0 70px rgba(255,77,109,.25)}
+body.st-thinking .clock-time{text-shadow:0 0 10px rgba(255,179,0,.6),0 0 34px rgba(255,179,0,.4),0 0 70px rgba(255,179,0,.22)}
+body.st-speaking .clock-time{text-shadow:0 0 10px rgba(45,255,179,.6),0 0 34px rgba(45,255,179,.4),0 0 70px rgba(45,255,179,.22)}
+.core-hint{font-size:11px;color:var(--muted);letter-spacing:.08em;margin-top:3px;text-align:center}
+.status-line{margin-top:5px;display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.14em;color:var(--cyan-dim);font-weight:700}
+.status-line:before,.status-line:after{content:"";height:1px;width:34px;background:var(--line)}
+/* panels */
+.grid{display:grid;grid-template-columns:1.25fr .85fr;gap:10px;position:relative;z-index:1}
+.panel{background:linear-gradient(160deg,rgba(10,42,64,.72),rgba(4,18,30,.82));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line2);border-radius:6px;padding:10px 13px;position:relative;overflow:hidden;box-shadow:0 0 0 1px rgba(0,229,255,.04),0 0 22px rgba(0,229,255,.06),inset 0 0 26px rgba(0,229,255,.04)}
+.panel:before{content:"";position:absolute;left:0;top:0;width:14px;height:14px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan);opacity:.9}
+.panel:after{content:"";position:absolute;right:0;bottom:0;width:14px;height:14px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan);opacity:.9}
+.panel-label{font-size:10px;letter-spacing:.2em;color:var(--muted);font-weight:900;display:flex;justify-content:space-between;align-items:center}
+.refresh{border:1px solid var(--line);background:transparent;color:var(--cyan);border-radius:999px;min-height:36px;padding:4px 10px;font-size:11px}
+.weather-main{display:flex;align-items:baseline;gap:8px;margin-top:4px}
+.weather-temp{font-family:"Share Tech Mono",monospace;font-size:34px;line-height:1}
+.weather-cond{font-weight:900;font-size:15px}
+.weather-meta{font-size:12px;color:var(--muted);line-height:1.7;margin-top:3px}
+.sys-list{display:grid;gap:7px;margin-top:8px;font-size:12px}
+.sys-list div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed rgba(255,255,255,.07);padding-bottom:6px}
+.sys-list span{color:var(--muted)}.sys-list b{color:#d9fbff;font-family:"Share Tech Mono",monospace;font-size:11px}
+/* controls */
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;position:relative;z-index:1}
+.btn{border-radius:6px;border:1px solid var(--line);padding:10px 6px;font-weight:900;letter-spacing:.04em;cursor:pointer;font-size:13px;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.btn-primary{background:linear-gradient(180deg,#4deeff,var(--cyan) 55%,#00c2e0);color:#00202b;border-color:var(--cyan);box-shadow:0 0 22px rgba(0,229,255,.32),inset 0 0 12px rgba(255,255,255,.25)}
+.hud-note{font-size:10.5px;color:#ffd48a;line-height:1.45;position:relative;z-index:1;padding:0 2px}
+.interim{font-size:12px;color:var(--cyan-dim);min-height:15px;line-height:1.25;position:relative;z-index:1;padding:0 2px;font-family:"Share Tech Mono",monospace;letter-spacing:.03em}
+.btn-ghost{background:rgba(0,229,255,.06);color:var(--text)}
+.btn.active{background:#123a4d;color:var(--cyan);border-color:var(--cyan)}
+.voice-row{display:flex;gap:8px;align-items:center;position:relative;z-index:1}
+.voice-row label{font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:900;white-space:nowrap}
+.voice-row select{flex:1;background:#061a29;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0 10px;font-size:16px;min-width:0}
+/* log */
+.log-wrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;position:relative;z-index:1;background:rgba(1,10,18,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--line2);border-radius:6px;overflow:hidden;box-shadow:0 0 22px rgba(0,229,255,.05),inset 0 0 30px rgba(0,229,255,.03)}
+.log-head{padding:6px 12px;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;font-size:10px;letter-spacing:.2em;color:var(--muted);font-weight:900}
+.log{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px;-webkit-overflow-scrolling:touch}
+.msg{max-width:86%;padding:10px 12px;border-radius:14px;font-size:14px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.msg.mugi{align-self:flex-start;background:#082b3f;border:1px solid rgba(0,229,255,.22);border-bottom-left-radius:4px}
+.msg.user{align-self:flex-end;background:#0d3b2f;border:1px solid rgba(45,255,179,.2);border-bottom-right-radius:4px}
+.msg .who{display:block;font-size:10px;letter-spacing:.16em;opacity:.75;margin-bottom:3px;font-weight:900}
+.msg.thinking{border-color:rgba(255,179,0,.45)}
+.msg.thinking::after{content:"";display:inline-block;width:2.2em;text-align:left;animation:thinkDots 1.2s steps(4) infinite;color:#ffd48a;font-weight:900}
+@keyframes thinkDots{0%{content:""}25%{content:"・"}50%{content:"・・"}75%{content:"・・・"}100%{content:""}}
+.notice{font-size:11px;color:#ffd48a;background:rgba(255,180,0,.08);border:1px solid rgba(255,180,0,.18);padding:8px 10px;border-radius:10px;line-height:1.5}
+/* input */
+.input-bar{display:flex;gap:8px;align-items:stretch;position:relative;z-index:30;flex-shrink:0;background:rgba(3,14,24,.9);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line2);border-radius:18px;padding:6px;box-shadow:0 -6px 24px rgba(0,0,0,.35)}
+.mic{touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;z-index:2}
+.mic.starting{background:radial-gradient(circle at 35% 30%,#ffe9a8,#ffb300 60%,#c47f00);border-color:#ffb300;color:#241a00;animation:pulseFast .7s infinite;box-shadow:0 0 24px rgba(255,179,0,.5)}
+/* voice guide overlay */
+.guide-backdrop{position:fixed;inset:0;background:rgba(0,4,8,.82);backdrop-filter:blur(3px);z-index:60;display:none;align-items:center;justify-content:center;padding:20px;pointer-events:none;visibility:hidden}
+.guide-backdrop.open{display:flex;pointer-events:auto;visibility:visible}
+.guide-card{background:linear-gradient(180deg,#082233,#04121e);border:1px solid var(--cyan);border-radius:18px;width:100%;max-width:480px;padding:22px 20px;box-shadow:0 0 34px rgba(0,229,255,.3);color:var(--text)}
+.guide-card h3{margin:0 0 10px;font-size:18px}
+.guide-card p,.guide-card li{font-size:15px;line-height:1.7}
+.guide-card ol{margin:8px 0;padding-left:20px}
+.guide-card .btn{width:100%;margin-top:14px}
+.input-bar input{flex:1;min-width:0;background:#061a29;border:1px solid var(--line);border-radius:14px;color:var(--text);padding:0 13px;font-size:16px}
+.input-bar input::placeholder{color:var(--muted2)}
+.mic{width:58px;height:58px;border-radius:50% !important;flex-shrink:0;background:radial-gradient(circle at 35% 30%,#8ff4ff,var(--cyan) 55%,#009ec2);color:#00202b;border:1px solid var(--cyan);font-size:22px;display:grid;place-items:center;box-shadow:0 0 24px rgba(0,229,255,.4),0 0 52px rgba(0,229,255,.18);cursor:pointer}
+.mic.listening{background:radial-gradient(circle at 35% 30%,#ffb3c2,#ff4d6d 60%,#c21847);border-color:#ff4d6d;color:#fff;animation:heartbeat 1.05s ease-in-out infinite;box-shadow:0 0 34px rgba(255,77,109,.8),0 0 72px rgba(255,77,109,.42)}
+.mic.unavailable{opacity:.45;box-shadow:none}
+.send{background:#0b3046;color:var(--cyan);border:1px solid var(--line);border-radius:14px;padding:0 14px;font-weight:900;cursor:pointer}
+.footer{display:flex;justify-content:space-between;gap:10px;font-size:10px;letter-spacing:.14em;color:var(--muted2);position:relative;z-index:1;padding:0 2px}
+.top-right{display:flex;align-items:center;gap:8px}
+.gear{width:40px;height:40px;min-height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--cyan);font-size:18px;display:grid;place-items:center;cursor:pointer;padding:0}
+.gear.has-key{border-color:#2dffb3;color:#2dffb3;box-shadow:0 0 12px rgba(45,255,179,.25)}
+/* settings modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,4,8,.78);backdrop-filter:blur(3px);z-index:50;display:none;align-items:flex-end;justify-content:center;pointer-events:none;visibility:hidden}
+.modal-backdrop.open{display:flex;pointer-events:auto;visibility:visible}
+.modal{background:linear-gradient(180deg,#082233,#04121e);border:1px solid var(--line);border-bottom:none;border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:calc(var(--vvh,100dvh) - 16px);overflow-y:auto;padding:20px 18px calc(18px + env(safe-area-inset-bottom));color:var(--text)}
+@media(min-width:700px){.modal-backdrop{align-items:center}.modal{border-radius:20px;border-bottom:1px solid var(--line)}}
+.modal h2{margin:0;font-size:17px;letter-spacing:.06em}
+.modal .sub{font-size:12px;color:var(--muted);line-height:1.6;margin:6px 0 0}
+.modal label.flabel{display:block;font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:900;margin:16px 0 6px}
+.modal select,.modal input[type=password],.modal input[type=text]{width:100%;background:#020d16;border:1px solid var(--line);border-radius:12px;color:var(--text);padding:0 12px;font-size:16px}
+.modal .hint{font-size:12px;color:var(--muted);line-height:1.65;margin-top:7px}
+.modal .hint.warn{color:#ffd48a}
+.modal .keybox{background:rgba(45,255,179,.06);border:1px solid rgba(45,255,179,.2);border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.65;color:#c9ffe9;margin-top:14px}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.modal-actions .btn{width:100%}
+.btn-danger{background:transparent;color:#ff8fa3;border:1px solid rgba(255,77,109,.4);border-radius:14px;padding:10px 12px;font-weight:900;cursor:pointer;width:100%;margin-top:10px}
+.modal .test-result{font-size:13px;line-height:1.6;margin-top:12px;min-height:20px}
+.modal .test-result.ok{color:#2dffb3}.modal .test-result.ng{color:#ff8fa3}
+@media (max-height:740px){.core-wrap{width:132px;height:132px}.core{width:76px;height:76px}.core strong{font-size:15px}.clock-time{font-size:42px}.weather-temp{font-size:30px}.grid{grid-template-columns:1fr 1fr}}
+.tick{transform-origin:0 0}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;animation-iteration-count:1 !important}}
+</style>
+</head>
+<body class="st-idle">
+<div id="stateTint" aria-hidden="true"></div>
+<div class="app">
+  <div id="particles" aria-hidden="true"></div>
+  <div class="scanbeam" aria-hidden="true"></div>
+  <div class="top-scroll">
+  <header class="top">
+    <div class="brand"><div class="brand-mark">◉</div><div><b>MUGI CONSOLE</b><span>PERSONAL AI INTERFACE</span></div></div>
+    <div class="top-right">
+      <div class="sys-pill"><span class="dot"></span><span id="sysState">ONLINE</span></div>
+      <button class="gear" id="settingsBtn" type="button" aria-label="頭脳の設定を開く">⚙</button>
+    </div>
+  </header>
+
+  <section class="clock" aria-label="現在時刻">
+    <div class="clock-time" id="clockTime">--:--:--</div>
+    <div class="clock-date" id="clockDate">読み込み中</div>
+    <div class="clock-sub">FUKUI, JAPAN — ASIA / TOKYO</div>
+  </section>
+
+  <section class="core-zone">
+    <div class="core-wrap" id="coreWrap">
+      <div class="ring ring-halo"></div><div class="ring ring-seg"></div>
+      <div class="ring ring-outer"></div><div class="ring ring-mid"></div><div class="ring ring-inner"></div><div id="ticks"></div>
+      <span class="core-data tl">SYS.CHECK // OK</span><span class="core-data tr" id="coreDataNet">LINK: LOCAL</span>
+      <span class="core-data bl">N36.06 E136.22</span><span class="core-data br" id="coreDataClock">--:--:--</span>
+      <div class="core" id="coreOrb" role="button" tabindex="0" aria-label="コア：タップで音声入力の開始と停止"><strong>MUGI</strong><small id="coreLabel">STANDBY</small><div class="wave"><i></i><i></i><i></i><i></i><i></i></div></div>
+    </div>
+    <div class="status-line" id="statusLine">待機中 — お呼びください</div>
+    <div class="core-hint">中央のコアをタップしても話せます（聞き取り中は赤く光ります）</div>
+  </section>
+
+  <section class="grid">
+    <article class="panel">
+      <div class="panel-label"><span>🌤 FUKUI WEATHER</span><button class="refresh" id="refreshWeather" type="button">更新</button></div>
+      <div class="weather-main"><span class="weather-temp" id="wTemp">--°</span><span class="weather-cond" id="wCond">取得中…</span></div>
+      <div class="weather-meta" id="wMeta">福井市の天気を取得しています。</div>
+    </article>
+    <article class="panel">
+      <div class="panel-label"><span>SYSTEM</span><span>v2.10</span></div>
+      <div class="sys-list">
+        <div><span>頭脳</span><b id="sysBrain">LOCAL</b></div>
+        <div><span>音声入力</span><b id="sysVoiceIn">CHECK</b></div>
+        <div><span>読み上げ</span><b id="sysVoiceOut">FEMALE</b></div>
+        <div><span>連携</span><b>⚙ から設定</b></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="controls">
+    <button class="btn btn-primary" id="briefBtn" type="button">◈ ブリーフィング</button>
+    <button class="btn btn-ghost active" id="ttsBtn" type="button">🔊 読み上げ ON</button>
+    <button class="btn btn-ghost" id="voiceTestBtn" type="button">▶ 音声テスト</button>
+  </section>
+  <div class="hud-note">※ 声が聞こえないとき：iPhoneの消音モード（マナーモード）中はWebの音声が鳴らないことがあります。本体側面のスイッチと音量を確認してから「音声テスト」を押してください。</div>
+  <div class="interim" id="interimLine" aria-live="polite"></div>
+
+  <div class="voice-row">
+    <label for="voiceSelect">声の選択</label>
+    <select id="voiceSelect"><option value="auto">自動 — 女性の声を優先</option></select>
+  </div>
+  </div><!-- /top-scroll -->
+
+  <section class="log-wrap">
+    <div class="log-head"><span>CONVERSATION LOG</span><span id="logCount">0</span></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <div id="fallbackNotice"></div>
+
+  <form class="input-bar" id="inputForm">
+    <button class="mic" id="micBtn" type="button" aria-label="音声入力">🎙</button>
+    <input id="textInput" type="text" placeholder="むぎに話しかける…" autocomplete="off" enterkeyhint="send">
+    <button class="send" type="submit">送信</button>
+  </form>
+
+  <footer class="footer"><span id="footerStatus">STATUS: STANDBY</span><span>v2.10 · VOICE: FEMALE / JA-JP</span></footer>
+</div>
+
+<div class="guide-backdrop" id="voiceGuide" role="alertdialog" aria-modal="true" aria-label="音声入力の案内">
+  <div class="guide-card">
+    <h3>🎙 音声入力について</h3>
+    <p><strong>この開き方では音声入力が使えません。</strong></p>
+    <p>理由：アプリ内ブラウザ（WebView）や埋め込み表示では、マイクの許可がこの画面まで届かないためです。コンソール側の故障ではありません。文字入力はいつでもそのまま使えます。</p>
+    <p>次のどちらかで話せます：</p>
+    <ol>
+      <li><strong>Safariで開き直す</strong>（共有メニューから開き直すか、ホーム画面に追加して開く）</li>
+      <li><strong>文字入力欄で、iPhoneキーボードのマイク（音声入力）を使う</strong>（入力欄をタップすると出るキーボードのマイクキーで話すと、文字になって送れます）</li>
+    </ol>
+    <button class="btn btn-primary" id="voiceGuideClose" type="button">閉じる（文字で入力する）</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-label="頭脳の設定">
+  <div class="modal">
+    <h2>⚙ 頭脳の設定（v2.10）</h2>
+    <p class="sub">APIキーを入れると、むぎと自由に会話できるようになります。キーがない間は、これまで通り定型応答で動きます。</p>
+
+    <label class="flabel" for="providerSelect">使う頭脳（AIプロバイダ）</label>
+    <select id="providerSelect">
+      <option value="gemini">Google Gemini（推奨・ブラウザから直接使えます）</option>
+      <option value="openai">OpenAI</option>
+      <option value="claude">Claude（Anthropic）</option>
+    </select>
+    <p class="hint" id="providerHint"></p>
+
+    <label class="flabel" for="keyGemini">Google Gemini のAPIキー</label>
+    <input type="password" id="keyGemini" placeholder="GeminiのAPIキーを貼り付け" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <p class="hint">Google AI Studioで無料発行できます。</p>
+
+    <label class="flabel" for="keyOpenai">OpenAI のAPIキー</label>
+    <input type="password" id="keyOpenai" placeholder="sk-… で始まるキー" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <p class="hint">OpenAI Platformの「API keys」から発行できます。</p>
+
+    <label class="flabel" for="keyClaude">Claude（Anthropic）のAPIキー</label>
+    <input type="password" id="keyClaude" placeholder="sk-ant-… で始まるキー" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <p class="hint">Anthropic Consoleの「API Keys」から発行できます。3つのキーはまとめて保存され、プロバイダを切り替えても消えません。使う頭脳は上の選択でいつでも切り替えられます。</p>
+
+    <label class="flabel" for="modelPreset" id="modelPresetLabel">モデル候補（プリセット）</label>
+    <select id="modelPreset"></select>
+    <label class="flabel" for="modelInput" id="modelInputLabel">モデル名（直接入力もできます）</label>
+    <input type="text" id="modelInput" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button class="btn btn-ghost" id="fetchModelsBtn" type="button" style="width:100%;margin-top:10px;display:none">🔍 このキーで使えるモデル一覧を取得する</button>
+    <div class="test-result" id="modelFetchStatus"></div>
+    <p class="hint">Geminiのモデル名は当て推量で決めません。「保存して接続テスト」または上のボタンを押すと、あなたのキーで <span class="mono">GET /v1beta/models</span> を取得し、<span class="mono">generateContent</span> に対応した実在モデルだけを上のプルダウンに入れます。初期選択は応答が速い flash 系のモデルです。取得した一覧はこの端末に保存され、会話のたびには取り直しません（404が返ったときだけ取り直して自動で選び直します）。会話はストリーミングで届いた文から順に表示・読み上げします。会話時のリトライは最大1回で、応答が15秒間途切れるとタイムアウトとして理由を表示して終わります（届いている途中の返答が制限時間で切れることはありません。接続テスト時は従来どおり粘ります）。エラー時はAPIが返したメッセージ原文をそのまま表示します。</p>
+
+    <div class="keybox">🔒 キーはこの端末の中だけに保存されます（このブラウザのlocalStorage）。送信先は、選んだプロバイダのAPI宛てだけです。このページの運営側やチャットに送られることはありません。</div>
+
+    <p class="hint warn" id="corsNote"></p>
+    <div class="test-result" id="testResult"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancelSettings" type="button">閉じる</button>
+      <button class="btn btn-primary" id="saveSettings" type="button">保存して接続テスト</button>
+    </div>
+    <button class="btn-danger" id="clearKey" type="button">保存したキーをすべて削除する</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var coreWrap=document.getElementById('coreWrap'), coreLabel=document.getElementById('coreLabel'),
+      statusLine=document.getElementById('statusLine'), footerStatus=document.getElementById('footerStatus'),
+      sysState=document.getElementById('sysState'), logEl=document.getElementById('log'), logCount=document.getElementById('logCount'),
+      textInput=document.getElementById('textInput'), micBtn=document.getElementById('micBtn');
+  var weatherData=null, ttsEnabled=true, selectedVoice=null, msgCount=0, isListening=false;
+
+  // ---- Brain settings (v2): keys live only in this device's localStorage ----
+  var PROVIDERS={
+    gemini:{label:'GEMINI', defModel:'', presets:[], fallbacks:[], hint:'無料枠があり、ブラウザから直接APIを呼べるので、このコンソールと相性が一番いいです。モデル名は固定しません。あなたのキーでモデル一覧APIを取得し、実際に使えるモデルだけから選びます。', cors:'Geminiはブラウザからの直接呼び出しに対応しています。404が出たら、キーで使えるモデル一覧を取り直して自動で選び直します。503・429（Google側の混雑）のときは、間をあけて自動リトライし、別モデルへの切り替えも試します。それでも直らない場合は、APIが返した原文をそのまま表示します。'},
+    openai:{label:'OPENAI', defModel:'gpt-5-mini', presets:['gpt-5-mini','gpt-5-nano','gpt-4o-mini','gpt-4.1-mini'], fallbacks:[], hint:'現行の標準モデル gpt-5-mini が初期値です（設定で変更できます）。', cors:'注意：OpenAIのAPIは、ブラウザからの直接呼び出しがCORSでブロックされる場合があります。その場合は接続テストでエラーになります。確実に動かしたい場合はGeminiがおすすめです。'},
+    claude:{label:'CLAUDE', defModel:'claude-haiku-4-5', presets:['claude-haiku-4-5','claude-sonnet-4-5','claude-sonnet-4-6'], fallbacks:[], hint:'現行の標準モデル claude-haiku-4-5 が初期値です（設定で変更できます）。', cors:'Claudeはブラウザ直接呼び出し用の許可ヘッダーを付けて送信します。うまくいかない場合はGeminiをお試しください。'}
+  };
+  var brain={provider:'gemini', keys:{gemini:'',openai:'',claude:''}, models:{gemini:'',openai:'gpt-5-mini',claude:'claude-haiku-4-5'}, geminiModels:[], geminiModelsAt:0};
+  try{ var savedBrain=JSON.parse(localStorage.getItem('mugiBrainV2')||'null');
+    if(savedBrain){
+      if(savedBrain.provider && PROVIDERS[savedBrain.provider]) brain.provider=savedBrain.provider;
+      if(savedBrain.keys) for(var pk in brain.keys) if(typeof savedBrain.keys[pk]==='string') brain.keys[pk]=savedBrain.keys[pk];
+      if(savedBrain.models) for(var pm in brain.models) if(typeof savedBrain.models[pm]==='string') brain.models[pm]=savedBrain.models[pm];
+      if(Array.isArray(savedBrain.geminiModels)) brain.geminiModels=savedBrain.geminiModels.filter(function(x){ return typeof x==='string' && x; });
+      if(typeof savedBrain.geminiModelsAt==='number') brain.geminiModelsAt=savedBrain.geminiModelsAt;
+    } }catch(e){}
+  // A Gemini model name saved by older builds is only a *claim* until the key's
+  // own model list confirms it. It is validated (and replaced if absent) the
+  // next time the list is fetched — never trusted blindly, never guessed.
+  var history=[];
+  function saveBrain(){ try{ localStorage.setItem('mugiBrainV2', JSON.stringify(brain)); }catch(e){} }
+  // No retired-model guessing table anymore: for Gemini the key's own
+  // /v1beta/models response is the only source of truth (see
+  // fetchGeminiModels below). For OpenAI/Claude, names saved by older builds
+  // that predate the current standard models are normalised once here.
+  (function migrateModels(){
+    var changed=false;
+    var legacyClaude={'claude-3-5-haiku-latest':'claude-haiku-4-5','claude-3-5-haiku-20241022':'claude-haiku-4-5','claude-3-5-sonnet-latest':'claude-sonnet-4-5','claude-3-7-sonnet-latest':'claude-sonnet-4-5'};
+    if(legacyClaude[brain.models.claude]){ brain.models.claude=legacyClaude[brain.models.claude]; changed=true; }
+    if(changed) saveBrain();
+  })();
+  // ---- Gemini live model discovery ----
+  // Special-purpose models also support generateContent but cannot hold a
+  // text chat, so they stay in the dropdown yet are never auto-picked.
+  function geminiChatSuitable(id){ return !/(image|tts|audio|live|embedding|veo|imagen|aqa|computer-use)/i.test(id); }
+  function geminiModelScore(id){
+    // Default pick = fastest-responding flash tier. flash-lite is cheaper
+    // but noticeably slower to start answering, so plain flash ranks first.
+    var s=100;
+    if(/flash-lite/i.test(id)) s=20; else if(/flash/i.test(id)) s=0; else if(/pro/i.test(id)) s=40;
+    if(/preview|exp/i.test(id)) s+=5;
+    if(!geminiChatSuitable(id)) s+=200;
+    return s;
+  }
+  function sortGeminiModels(ids){
+    return ids.slice().sort(function(a,b){
+      var d=geminiModelScore(a)-geminiModelScore(b);
+      if(d!==0) return d;
+      return a<b?-1:(a>b?1:0);
+    });
+  }
+  function pickDefaultGeminiModel(ids){
+    var sorted=sortGeminiModels(ids||[]);
+    for(var i=0;i<sorted.length;i++){ if(geminiChatSuitable(sorted[i]) && /flash/i.test(sorted[i])) return sorted[i]; }
+    for(var j=0;j<sorted.length;j++){ if(geminiChatSuitable(sorted[j])) return sorted[j]; }
+    return sorted[0]||'';
+  }
+  function validateGeminiSelection(){
+    // Keep the stored choice only if the key's real list contains it.
+    if(brain.geminiModels.length && brain.geminiModels.indexOf(brain.models.gemini)===-1){
+      brain.models.gemini=pickDefaultGeminiModel(brain.geminiModels);
+    }
+    if(!brain.models.gemini && brain.geminiModels.length){
+      brain.models.gemini=pickDefaultGeminiModel(brain.geminiModels);
+    }
+  }
+  function activeKey(){ return (brain.keys[brain.provider]||'').trim(); }
+  function updateBrainUI(){
+    var b=document.getElementById('sysBrain'), gear=document.getElementById('settingsBtn');
+    var net=document.getElementById('coreDataNet');
+    if(activeKey()){ b.textContent=PROVIDERS[brain.provider].label; gear.classList.add('has-key'); if(net) net.textContent='LINK: '+PROVIDERS[brain.provider].label; }
+    else { b.textContent='LOCAL'; gear.classList.remove('has-key'); if(net) net.textContent='LINK: LOCAL'; }
+  }
+
+  // ambient particles
+  (function(){
+    var box=document.getElementById('particles'); if(!box) return;
+    var html='';
+    for(var i=0;i<26;i++){
+      var s=(Math.random()*2.2+1).toFixed(1), x=(Math.random()*100).toFixed(1), y=(Math.random()*100).toFixed(1),
+          dur=(Math.random()*7+6).toFixed(1), delay=(Math.random()*6).toFixed(1), op=(Math.random()*.3+.15).toFixed(2);
+      html+='<i style="left:'+x+'%;top:'+y+'%;width:'+s+'px;height:'+s+'px;opacity:'+op+';animation-duration:'+dur+'s;animation-delay:-'+delay+'s"></i>';
+    }
+    box.innerHTML=html;
+  })();
+
+  // ticks
+  var ticks=document.getElementById('ticks'), tickHtml='';
+  var tickR=Math.max(62, Math.floor(coreWrap.clientWidth/2)-4);
+  for(var i=0;i<60;i++){ var a=i*6; tickHtml+='<span class="tick" style="transform:rotate('+a+'deg) translateY(-'+tickR+'px);opacity:'+(i%5===0?1:.35)+'"></span>'; }
+  ticks.innerHTML=tickHtml;
+
+  function setState(state,label,status){
+    coreWrap.className='core-wrap '+state;
+    document.body.classList.remove('st-idle','st-listening','st-thinking','st-speaking');
+    document.body.classList.add('st-'+state);
+    coreLabel.textContent=label;
+    statusLine.textContent=status;
+    footerStatus.textContent='STATUS: '+label;
+    sysState.textContent= state==='idle' ? 'ONLINE' : label;
+  }
+  function nowTokyo(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo'})); }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function weekdayJa(d){ return ['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'][d.getDay()]; }
+  function updateClock(){
+    var d=nowTokyo();
+    var tstr=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+    document.getElementById('clockTime').textContent=tstr;
+    var cdc=document.getElementById('coreDataClock'); if(cdc) cdc.textContent=tstr+' JST';
+    document.getElementById('clockDate').textContent=d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日（'+weekdayJa(d).replace('曜日','')+'）';
+  }
+  updateClock(); setInterval(updateClock,1000);
+
+  // ---- Keep the layout inside the *visible* viewport ----
+  // iOS shrinks the visual viewport when the keyboard opens, but 100dvh does
+  // not always follow inside in-app browsers. Mirror visualViewport.height
+  // into --vvh so the flex column compresses and the input bar (flex-shrink:0,
+  // after the scrollable areas) always stays on screen above the keyboard.
+  function fitViewport(){
+    var vv=window.visualViewport;
+    var h= vv? Math.round(vv.height) : window.innerHeight;
+    if(h>0) document.documentElement.style.setProperty('--vvh',h+'px');
+  }
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',fitViewport);
+    window.visualViewport.addEventListener('scroll',fitViewport);
+  }
+  window.addEventListener('resize',fitViewport);
+  window.addEventListener('orientationchange',function(){ setTimeout(fitViewport,80); });
+  fitViewport();
+
+  // ---- Weather (Open-Meteo, no key) ----
+  var codeMap={0:'晴れ',1:'晴れ時々曇り',2:'曇り時々晴れ',3:'曇り',45:'霧',48:'霧',51:'霧雨',53:'霧雨',55:'霧雨',56:'凍る霧雨',57:'凍る霧雨',61:'雨',63:'雨',65:'強い雨',66:'凍雨',67:'凍雨',71:'雪',73:'雪',75:'大雪',77:'雪',80:'にわか雨',81:'にわか雨',82:'激しいにわか雨',85:'雪',86:'雪',95:'雷雨',96:'雷雨・雹',99:'雷雨・雹'};
+  function fetchWeather(){
+    var url='https://api.open-meteo.com/v1/forecast?latitude=36.0658&longitude=136.2213&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=1';
+    // 8s cap: a hung request must not leave the panel on 「取得中…」 forever.
+    var ctrl=('AbortController' in window)? new AbortController() : null;
+    var killer= ctrl? setTimeout(function(){ try{ ctrl.abort(); }catch(e){} },8000) : null;
+    fetch(url, ctrl? {signal:ctrl.signal} : undefined).then(function(r){ if(killer) clearTimeout(killer); if(!r.ok) throw new Error('bad'); return r.json(); }).then(function(j){
+      var c=j.current, d=j.daily;
+      weatherData={temp:Math.round(c.temperature_2m), cond:codeMap[c.weather_code]||'不明', code:c.weather_code, max:Math.round(d.temperature_2m_max[0]), min:Math.round(d.temperature_2m_min[0]), hum:c.relative_humidity_2m, wind:c.wind_speed_10m};
+      document.getElementById('wTemp').textContent=weatherData.temp+'°';
+      document.getElementById('wCond').textContent=weatherData.cond;
+      document.getElementById('wMeta').innerHTML='最高 '+weatherData.max+'° / 最低 '+weatherData.min+'°<br>湿度 '+weatherData.hum+'% ・ 風速 '+weatherData.wind+' km/h';
+    }).catch(function(){
+      if(killer) clearTimeout(killer);
+      // One failed refresh must not blank a reading that is already on
+      // screen — keep the last good data and let 「更新」 try again.
+      if(weatherData) return;
+      document.getElementById('wCond').textContent='取得できませんでした';
+      document.getElementById('wMeta').textContent='通信状況を確認して「更新」を押してください。';
+    });
+  }
+  fetchWeather();
+  document.getElementById('refreshWeather').addEventListener('click',fetchWeather);
+
+  // ---- Log ----
+  function addMsg(who,text){
+    msgCount++; logCount.textContent=msgCount;
+    var div=document.createElement('div'); div.className='msg '+(who==='user'?'user':'mugi');
+    var label=document.createElement('span'); label.className='who'; label.textContent= who==='user'?'NAKAYAMA':'MUGI';
+    div.appendChild(label); div.appendChild(document.createTextNode(text));
+    logEl.appendChild(div); logEl.scrollTop=logEl.scrollHeight;
+    return div;
+  }
+  function updateMsg(div,text){
+    if(!div){ addMsg('mugi',text); return; }
+    if(div.childNodes.length>1) div.childNodes[1].textContent=text;
+    else div.appendChild(document.createTextNode(text));
+    logEl.scrollTop=logEl.scrollHeight;
+  }
+
+  // ---- Voice selection: female priority ----
+  var FEMALE=['kyoko','京子','o-ren','haruka','遥','ayumi','あゆみ','ichika','nanami','aoi','yuri','sakura','female','woman','google 日本語','samantha'];
+  var MALE=['otoya','乙矢','ichiro','一郎','male','man','daniel'];
+  function scoreVoice(v){
+    var n=(v.name||'').toLowerCase(); var s=0;
+    if(v.lang && v.lang.toLowerCase().indexOf('ja')===0) s+=10;
+    for(var i=0;i<FEMALE.length;i++) if(n.indexOf(FEMALE[i])!==-1) s+=50;
+    for(var j=0;j<MALE.length;j++) if(n.indexOf(MALE[j])!==-1) s-=60;
+    return s;
+  }
+  function populateVoices(){
+    if(!('speechSynthesis' in window)) return;
+    var voices=speechSynthesis.getVoices(); if(!voices.length) return;
+    var ja=voices.filter(function(v){ return v.lang && v.lang.toLowerCase().indexOf('ja')===0; });
+    var sel=document.getElementById('voiceSelect'); var cur=sel.value;
+    sel.innerHTML='<option value="auto">自動 — 女性の声を優先（推奨）</option>';
+    ja.sort(function(a,b){ return scoreVoice(b)-scoreVoice(a); });
+    ja.forEach(function(v,i){ var o=document.createElement('option'); o.value=v.name; o.textContent=v.name+(i===0?'（女性優先で選択中）':''); sel.appendChild(o); });
+    if(cur && cur!=='auto') sel.value=cur;
+    // pick best female as default
+    selectedVoice= ja.length? ja[0] : voices[0];
+    document.getElementById('sysVoiceOut').textContent= selectedVoice ? selectedVoice.name.slice(0,12).toUpperCase() : 'FEMALE';
+  }
+  if('speechSynthesis' in window){ populateVoices(); speechSynthesis.onvoiceschanged=populateVoices; }
+  document.getElementById('voiceSelect').addEventListener('change',function(e){
+    unlockAudio();
+    var voices=speechSynthesis.getVoices();
+    if(e.target.value==='auto'){ populateVoices(); }
+    else { selectedVoice=voices.find(function(v){return v.name===e.target.value;})||selectedVoice; }
+    speak('声を変更しました。むぎです。よろしくお願いします。');
+  });
+
+  // ---- TTS unlock: iOS stays silent until speech starts from a user tap ----
+  var audioUnlocked=false, pendingSpeech=null;
+  function ensureVoices(cb){
+    if(!('speechSynthesis' in window)){ cb(); return; }
+    if(speechSynthesis.getVoices().length){ populateVoices(); cb(); return; }
+    var done=false;
+    var finish=function(){ if(done) return; done=true; populateVoices(); cb(); };
+    speechSynthesis.addEventListener('voiceschanged',finish);
+    setTimeout(finish,1200);
+  }
+  function unlockAudio(ev){
+    if(!('speechSynthesis' in window)) return;
+    if(speechSynthesis.paused) { try{ speechSynthesis.resume(); }catch(e){} }
+    // If the very first tap is the mic button or the core, the user wants
+    // to SPEAK, not to listen: drop the queued greeting instead of blasting
+    // it over (and into) the start of speech recognition.
+    var tapTarget=ev && ev.target;
+    if(tapTarget && (micBtn.contains(tapTarget) || coreWrap.contains(tapTarget))) pendingSpeech=null;
+    if(audioUnlocked) return;
+    audioUnlocked=true;
+    // Speak the queued greeting RIGHT HERE, synchronously inside the tap.
+    // iOS Safari only honours speech that starts inside a user gesture;
+    // deferring it until the voice list loads (voiceschanged / a timeout)
+    // moves it outside the gesture and iOS drops it without a sound.
+    if(pendingSpeech){ var p=pendingSpeech; pendingSpeech=null; doSpeak(p); return; }
+    // Nothing queued: prime the engine inside the tap so later utterances
+    // are allowed to sound. The prime must be a REAL short utterance —
+    // the old single-space prime could sit in the iOS speech queue
+    // forever without ever starting, jamming every later utterance
+    // behind it (a cause of total silence).
+    try{
+      var prime=new SpeechSynthesisUtterance('むぎ'); prime.volume=0; prime.rate=1.6; prime.lang='ja-JP';
+      if(selectedVoice) prime.voice=selectedVoice;
+      speechSynthesis.speak(prime);
+    }catch(e){}
+  }
+  document.addEventListener('pointerdown',unlockAudio);
+  document.addEventListener('touchend',unlockAudio);
+  document.addEventListener('keydown',unlockAudio);
+
+  function doSpeak(text,more){
+    if(!more) speechSynthesis.cancel();
+    var started=false, retried=false;
+    function makeUtterance(){
+      var u=new SpeechSynthesisUtterance(text);
+      u.lang='ja-JP'; u.volume=1; u.rate=1.02; u.pitch=1.15;
+      var selVal=document.getElementById('voiceSelect').value;
+      if(selVal!=='auto'){ var v=speechSynthesis.getVoices().find(function(x){return x.name===selVal;}); if(v) u.voice=v; }
+      else if(selectedVoice) u.voice=selectedVoice;
+      if(!u.voice){
+        var ja=speechSynthesis.getVoices().filter(function(x){ return x.lang && x.lang.toLowerCase().indexOf('ja')===0; });
+        ja.sort(function(a,b){ return scoreVoice(b)-scoreVoice(a); });
+        if(ja.length) u.voice=ja[0];
+      }
+      u.onstart=function(){ started=true; setState('speaking','SPEAKING','応答中 — 読み上げています'); };
+      u.onend=function(){ if(!speechSynthesis.pending && !speechSynthesis.speaking) setState('idle','STANDBY','待機中 — お呼びください'); };
+      u.onerror=function(){ if(!speechSynthesis.pending && !speechSynthesis.speaking) setState('idle','STANDBY','待機中 — お呼びください'); };
+      return u;
+    }
+    if(!more) setState('speaking','SPEAKING','応答中 — 読み上げています');
+    speechSynthesis.speak(makeUtterance());
+    if(speechSynthesis.paused) { try{ speechSynthesis.resume(); }catch(e){} }
+    // iOS queue-stuck recovery: an utterance can be silently dropped when
+    // speak() races a cancel() (the mic tap cancels right before a reply
+    // is spoken) or when the queue jammed earlier — no onstart, no error,
+    // no sound, and the synth reports itself idle. Detect that state and
+    // re-speak once after clearing the queue.
+    setTimeout(function(){
+      if(started || retried || speechSynthesis.speaking) return;
+      retried=true;
+      try{ speechSynthesis.cancel(); }catch(e){}
+      speechSynthesis.speak(makeUtterance());
+      if(speechSynthesis.paused) { try{ speechSynthesis.resume(); }catch(e){} }
+    },1500);
+  }
+  function speak(text,more){
+    if(!ttsEnabled || !('speechSynthesis' in window)) { if(!more) setState('idle','STANDBY','待機中 — お呼びください'); return; }
+    if(!audioUnlocked){ if(!more){ pendingSpeech=text; setState('idle','STANDBY','画面を一度タップすると声が出ます'); } return; }
+    ensureVoices(function(){ doSpeak(text,more); });
+  }
+  document.getElementById('voiceTestBtn').addEventListener('click',function(){
+    unlockAudio();
+    if(!('speechSynthesis' in window)){ addMsg('mugi','このブラウザでは読み上げ（音声合成）が使えません。Safariで開くと使える場合があります。'); return; }
+    if(!ttsEnabled){ ttsEnabled=true; var tb=document.getElementById('ttsBtn'); tb.textContent='🔊 読み上げ ON'; tb.classList.add('active'); }
+    ensureVoices(function(){ doSpeak('音声テストです。むぎの声が聞こえていますか。聞こえたら準備完了です。'); });
+  });
+
+  // ---- TTS toggle ----
+  var ttsBtn=document.getElementById('ttsBtn');
+  ttsBtn.addEventListener('click',function(){
+    ttsEnabled=!ttsEnabled;
+    ttsBtn.textContent= ttsEnabled?'🔊 読み上げ ON':'🔇 読み上げ OFF';
+    ttsBtn.classList.toggle('active',ttsEnabled);
+    if(!ttsEnabled && 'speechSynthesis' in window) speechSynthesis.cancel();
+  });
+
+  // ---- Response logic v1 ----
+  function greetingWord(){ var h=nowTokyo().getHours(); return h<5?'こんばんは':h<11?'おはようございます':h<17?'こんにちは':'こんばんは'; }
+  function generateResponse(raw){
+    var t=raw.trim();
+    var d=nowTokyo();
+    if(/おはよう/.test(t)) return 'おはようございます、Nakayamaさん。今日もよろしくお願いします。ブリーフィングが必要でしたらお呼びください。';
+    if(/こんにちは|こんばんは|はじめまして|やあ|ハロー|hello/i.test(t)) return greetingWord()+'、Nakayamaさん。むぎです。時刻・日付・福井の天気ならすぐお答えできます。';
+    if(/名前|なんていう|誰|きみは|あなたは/.test(t)) return '私は「むぎ」です。Nakayamaさん専用のパーソナルAIとして、このコンソールで待機しています。';
+    if(/何時|時間|時刻/.test(t)) return '現在時刻は '+d.getHours()+'時'+d.getMinutes()+'分 です。';
+    if(/何日|日付|曜日|今日は/.test(t)) return '今日は '+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日、'+weekdayJa(d)+' です。';
+    if(/天気|気温|福井|最高|最低/.test(t)){
+      if(weatherData) return '福井市は現在 '+weatherData.cond+'、気温 '+weatherData.temp+'度 です。今日の最高は '+weatherData.max+'度、最低は '+weatherData.min+'度 の予報です。';
+      return '天気データはまだ取得できていません。少し待ってから、もう一度聞いてください。';
+    }
+    if(/ブリーフィング|報告して|朝の/.test(t)){ setTimeout(doBriefing,300); return 'ブリーフィングを開始します。'; }
+    if(/ありがとう/.test(t)) return 'どういたしまして。いつでもお呼びください。';
+    if(/状態|システム|調子|大丈夫/.test(t)) return 'システムは正常です。時計と天気は動作中、音声は女性の声で待機しています。'+(activeKey()? '頭脳は '+PROVIDERS[brain.provider].label+' に接続済みです。' : '頭脳はまだ未接続です。設定からAPIキーを入れると自由に会話できます。');
+    if(/ジャービス/.test(t)) return 'はい、ジャービス風コンソールとして作られています。中央のコア、天気、音声応答に加えて、設定からAPIキーを入れるとAIと自由に会話できます。';
+    if(/止めて|静かに|ストップ/.test(t)){ if('speechSynthesis' in window) speechSynthesis.cancel(); return '読み上げを止めました。'; }
+    return '承知しました。「'+t+'」ですね。今はローカル応答で動いています。設定（右上の歯車）からAPIキーを入れると自由に会話できます。今答えられるのは、挨拶・現在時刻・日付と曜日・福井の天気・ブリーフィングです。';
+  }
+
+  // ---- Brain (v2): provider APIs, called directly from this device only ----
+  function buildSystemPrompt(){
+    var d=nowTokyo();
+    var w= weatherData ? '福井市の天気：'+weatherData.cond+'、現在'+weatherData.temp+'度、最高'+weatherData.max+'度、最低'+weatherData.min+'度、湿度'+weatherData.hum+'%。' : '福井市の天気：まだ取得できていない。';
+    return 'あなたは「むぎ」という名前のパーソナルAIアシスタントです。ユーザーは「ナカヤマ」さん、福井県在住です。'
+      +'現在日時（日本時間）：'+d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日（'+weekdayJa(d)+'）'+d.getHours()+'時'+d.getMinutes()+'分。'+w
+      +'返答は音声で読み上げられます。日本語で、短く自然な口語で答えてください。原則2〜3文まで。箇条書きや記号、絵文字、Markdownは使わないでください。'
+      +'時刻や天気を聞かれたら上記の情報をもとに答えてください。わからないことは正直にわからないと言ってください。';
+  }
+  function parseApiError(res,bodyText){
+    var msg='';
+    try{ var j=JSON.parse(bodyText);
+      if(j.error) msg=(typeof j.error==='string')? j.error : (j.error.message||'');
+      else if(j.message) msg=j.message;
+    }catch(e){}
+    var err=new Error('HTTP '+res.status);
+    err.status=res.status; err.apiMessage=msg;
+    // Keep the API's response body verbatim so the real cause is traceable
+    // in the conversation log / test result instead of being summarised away.
+    err.rawBody=(bodyText||'').slice(0,1200);
+    return err;
+  }
+  function rawBodySuffix(err){
+    if(err && err.rawBody) return '\nAPI応答（原文）：'+err.rawBody;
+    if(err && err.apiMessage) return '\nAPI応答：'+err.apiMessage;
+    return '';
+  }
+  function friendlyError(err){
+    if(!err) return '不明なエラーです。';
+    if(err.code==='TIMEOUT') return '応答が途中で止まり、15秒以上新しい文が届きませんでした（タイムアウト）。相手側の混雑や通信の詰まりの可能性があります。少し待ってから、もう一度送ってみてください。';
+    if(err.status===503) return 'Google側が混み合っています（HTTP 503：一時的な過負荷）。キーや設定のせいではありません。自動で間をあけて再試行し、別モデルへの切り替えも試しましたが、今は届きませんでした。少し待ってからもう一度どうぞ。'+rawBodySuffix(err);
+    if(err.status===404) return 'モデルが見つかりませんでした（HTTP 404）。このキーでは指定モデルが使えません。Geminiの場合はモデル一覧を取り直して自動で選び直しましたが、それでも届きませんでした。設定を開くと一覧を再取得できます。'+rawBodySuffix(err);
+    if(err.status===400 && err.apiMessage && /api key not valid|API_KEY_INVALID|invalid.*key/i.test(err.apiMessage)) return 'APIキーが正しくないようです（HTTP 400）。キーのコピーミスがないか確認してください。'+rawBodySuffix(err);
+    if(err.status===400) return 'リクエストが受け付けられませんでした（HTTP 400）。'+rawBodySuffix(err);
+    if(err.status===401 || err.status===403) return 'キーが無効か、権限がありません（HTTP '+err.status+'）。キーが正しいか、発行元で有効になっているか確認してください。'+rawBodySuffix(err);
+    if(err.status===429) return '相手側の制限に達しました（HTTP 429）。一時的な混雑か、無料枠の上限の可能性があります。キーや設定のせいではありません。自動で間をあけて再試行しましたが届かなかったため、少し時間を置いてからもう一度どうぞ。'+rawBodySuffix(err);
+    if(err.status) return '接続できませんでした（HTTP '+err.status+'）。'+rawBodySuffix(err);
+    return '通信できませんでした。ネット接続を確認してください。ブラウザからの直接呼び出しがブロックされている可能性もあります。'+(err.message?'（'+err.message+'）':'')+rawBodySuffix(err);
+  }
+  function readJson(res){
+    return res.text().then(function(t){
+      if(!res.ok) throw parseApiError(res,t);
+      try{ return JSON.parse(t); }catch(e){ throw new Error('応答を読み取れませんでした'); }
+    });
+  }
+  // GET /v1beta/models with the user's own key. The returned list — filtered
+  // to models whose supportedGenerationMethods include generateContent — is
+  // the ONLY source of truth for which Gemini models this key can use.
+  function fetchGeminiModels(key){
+    key=(key||'').trim();
+    if(!key){ var e0=new Error('キーが空です'); e0.code='NO_KEY'; return Promise.reject(e0); }
+    var collected=[];
+    function page(pageToken){
+      var url='https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000'+(pageToken?('&pageToken='+encodeURIComponent(pageToken)):'');
+      return fetch(url,{method:'GET',headers:{'x-goog-api-key':key}})
+        .then(readJson)
+        .then(function(j){
+          var list=(j && j.models) ? j.models : [];
+          list.forEach(function(m){
+            var methods=m.supportedGenerationMethods||[];
+            if(methods.indexOf('generateContent')===-1) return;
+            var id=String(m.name||'').replace(/^models\//,'');
+            if(id && collected.indexOf(id)===-1) collected.push(id);
+          });
+          if(j && j.nextPageToken && collected.length<1000) return page(j.nextPageToken);
+          return collected;
+        });
+    }
+    return page('').then(function(ids){
+      if(!ids.length){ var e1=new Error('generateContent対応モデルが0件でした'); e1.code='NO_MODELS'; throw e1; }
+      brain.geminiModels=ids;
+      brain.geminiModelsAt=Date.now();
+      validateGeminiSelection();
+      saveBrain();
+      return ids;
+    });
+  }
+  // ---- Transient-overload handling (HTTP 503 / 429) ----
+  // 503/429 mean the provider is temporarily overloaded or rate-limiting —
+  // not a key/settings problem. Retry the same call with exponential
+  // backoff (1.5s → 3s → 6s); callers fall back to another listed model
+  // only after these retries are exhausted.
+  function waitMs(ms){ return new Promise(function(res){ setTimeout(res,ms); }); }
+  function isTransient(err){ return !!err && (err.status===503 || err.status===429); }
+  function withTransientRetry(makeCall,maxRetries){
+    var delays=[1500,3000,6000];
+    var attempt=function(n){
+      return makeCall().catch(function(err){
+        if(isTransient(err) && n<maxRetries){
+          try{ setState('thinking','RETRYING','相手が混雑中 — '+(delays[n]/1000)+'秒あけて再試行します（'+(n+1)+'/'+maxRetries+'）'); }catch(e){}
+          return waitMs(delays[Math.min(n,delays.length-1)]).then(function(){ return attempt(n+1); });
+        }
+        throw err;
+      });
+    };
+    return attempt(0);
+  }
+  function geminiGenerate(key,model,sys,msgs){
+    var contents=msgs.map(function(m){ return {role:(m.role==='assistant'?'model':'user'), parts:[{text:m.text}]}; });
+    var genCfg={maxOutputTokens:300,temperature:0.7};
+    // Speed first: on flash models that accept it, switch the model's
+    // internal "thinking" pass OFF. A voice chat wants a short answer in
+    // ~2 seconds, not a long silent reasoning pass before the first token.
+    // (Only the 2.5 flash series is known to accept thinkingBudget; other
+    // series may reject the whole request with a 400 over this one field,
+    // so it is sent nowhere else.)
+    if(/flash/i.test(model) && /2\.5/.test(model)) genCfg.thinkingConfig={thinkingBudget:0};
+    return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':streamGenerateContent?alt=sse',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:contents,generationConfig:genCfg})})
+      .then(function(res){
+        if(!res.ok) return res.text().then(function(t){ throw parseApiError(res,t); });
+        if(!res.body || !res.body.getReader) return res.text().then(function(t){ return parseGeminiCandidates(t); });
+        // SSE stream: parse each "data:" event as it arrives and hand the
+        // accumulated text to the live renderer, so the reply appears
+        // sentence by sentence instead of all at once at the end.
+        var reader=res.body.getReader(), decoder=new TextDecoder('utf-8'), buf='', full='';
+        function pump(){
+          return reader.read().then(function(step){
+            if(step.done) return full;
+            buf+=decoder.decode(step.value,{stream:true});
+            var lines=buf.split('\n'); buf=lines.pop();
+            lines.forEach(function(line){
+              var s=line.trim();
+              if(s.indexOf('data:')!==0) return;
+              var payload=s.slice(5).trim();
+              if(!payload || payload==='[DONE]') return;
+              try{
+                var j=JSON.parse(payload);
+                var parts=(j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[];
+                var delta=parts.map(function(p){return p.text||'';}).join('');
+                if(delta){ full+=delta; if(geminiGenerate.onChunk) geminiGenerate.onChunk(full); }
+              }catch(e){}
+            });
+            return pump();
+          });
+        }
+        return pump().then(function(t){ var out=(t||'').trim(); if(!out) throw new Error('応答が空でした'); return out; });
+      });
+  }
+  geminiGenerate.onChunk=null;
+  function parseGeminiCandidates(t){
+    var j; try{ j=JSON.parse(t); }catch(e){ throw new Error('応答を読み取れませんでした'); }
+    var out=(j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)? j.candidates[0].content.parts.map(function(p){return p.text||'';}).join('') : '';
+    if(!out) throw new Error('応答が空でした');
+    return out.trim();
+  }
+  function callBrain(userText,opts){
+    opts=opts||{};
+    var isTest=!!opts.test;
+    // Conversation turns are latency-critical: at most 1 same-model retry,
+    // at most 1 fallback model. The settings connection test keeps the
+    // patient behaviour (3 retries, up to 4 fallbacks).
+    var maxRetry= isTest?3:1, maxFallback= isTest?4:1;
+    var key=activeKey(), model=brain.models[brain.provider], sys=buildSystemPrompt();
+    var msgs=history.slice(-10); msgs.push({role:'user',text:userText});
+    if(brain.provider==='gemini'){
+      // The model list is cached in localStorage (brain.geminiModels). It is
+      // reused as-is — even a stale list — and re-fetched ONLY when a
+      // generate call actually returns 404 (see the recovery step below),
+      // never on every conversation turn.
+      var ids=brain.geminiModels||[];
+      var startModel='';
+      if(ids.length){
+        startModel= (ids.indexOf(model)!==-1 && geminiChatSuitable(model)) ? model : pickDefaultGeminiModel(ids);
+      }
+      var begin=function(){
+        if(!startModel){ var e2=new Error('使えるモデルが選べませんでした'); e2.code='NO_MODELS'; throw e2; }
+        if(opts.onChunk) geminiGenerate.onChunk=opts.onChunk;
+        return withTransientRetry(function(){ return geminiGenerate(key,startModel,sys,msgs); },maxRetry).then(function(txt){
+          geminiGenerate.onChunk=null;
+          if(brain.models.gemini!==startModel){ brain.models.gemini=startModel; saveBrain(); }
+          return txt;
+        }).catch(function(firstErr){
+          geminiGenerate.onChunk=null;
+          var recoverable= firstErr && (firstErr.status===404 || isTransient(firstErr));
+          if(!recoverable) throw firstErr;
+          // Step 2 (404 / overload recovery): re-fetch the model list right
+          // now, rebuild the candidate order from it, and retry with other
+          // models this key actually lists. Conversation turns try at most
+          // ONE other model so a reply never drags on; the connection test
+          // tries up to four. The first model that answers is adopted.
+          return fetchGeminiModels(key).then(function(freshIds){
+            var ordered=sortGeminiModels(freshIds).filter(function(id){ return geminiChatSuitable(id) && id!==startModel; });
+            var candidates=ordered.slice(0,maxFallback);
+            if(!candidates.length) throw firstErr;
+            var attempt=function(i){
+              if(opts.onChunk) geminiGenerate.onChunk=opts.onChunk;
+              return withTransientRetry(function(){ return geminiGenerate(key,candidates[i],sys,msgs); },isTest?1:0).then(function(txt){
+                geminiGenerate.onChunk=null;
+                brain.models.gemini=candidates[i]; saveBrain();
+                return txt;
+              }).catch(function(err){
+                geminiGenerate.onChunk=null;
+                var canNext= err && (err.status===404 || isTransient(err)) && i+1<candidates.length;
+                if(canNext) return attempt(i+1);
+                if(err && (err.status===404 || isTransient(err))){
+                  // Every listed candidate failed the same way: surface the
+                  // LAST API body verbatim so the reason stays traceable,
+                  // keeping its status (404 or 503/429) for the message.
+                  var combo=new Error('HTTP '+err.status);
+                  combo.status=err.status;
+                  combo.apiMessage=err.apiMessage||firstErr.apiMessage||'';
+                  combo.rawBody='【モデル一覧を取り直し、別モデルも試しました】最後に試したモデル: '+candidates[i]+'\n'+(err.rawBody||firstErr.rawBody||'');
+                  throw combo;
+                }
+                throw err;
+              });
+            };
+            return attempt(0);
+          },function(listErr){
+            // The list re-fetch itself failed: keep the original error and
+            // attach the list error's body so both causes are visible.
+            var combo2=new Error('HTTP '+(firstErr.status||''));
+            combo2.status=firstErr.status;
+            combo2.apiMessage=firstErr.apiMessage||'';
+            combo2.rawBody=(firstErr.rawBody||'')+'\n【モデル一覧の再取得も失敗】'+(listErr.rawBody||listErr.apiMessage||listErr.message||'');
+            throw combo2;
+          });
+        });
+      };
+      // No cached list at all (first run): fetch it once, then it is cached.
+      if(!ids.length) return fetchGeminiModels(key).then(function(fresh){ ids=fresh; startModel=pickDefaultGeminiModel(ids); return begin(); });
+      return Promise.resolve().then(begin);
+    }
+    if(brain.provider==='openai'){
+      var om=[{role:'system',content:sys}].concat(msgs.map(function(m){ return {role:m.role,content:m.text}; }));
+      return withTransientRetry(function(){
+        return fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:model,messages:om,max_tokens:400,temperature:0.7})})
+          .then(readJson)
+          .then(function(j){ var t=(j.choices&&j.choices[0]&&j.choices[0].message)? (j.choices[0].message.content||'') : ''; if(!t) throw new Error('応答が空でした'); return t.trim(); });
+      },maxRetry);
+    }
+    var cm=msgs.map(function(m){ return {role:m.role,content:m.text}; });
+    return withTransientRetry(function(){
+      return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:model,max_tokens:400,system:sys,messages:cm})})
+        .then(readJson)
+        .then(function(j){ var t=j.content? j.content.map(function(b){return b.text||'';}).join('') : ''; if(!t) throw new Error('応答が空でした'); return t.trim(); });
+    },maxRetry);
+  }
+  var busy=false;
+  // Shared brain path: real conversation AND the settings connection test both
+  // go through askBrain -> callBrain. Timeouts differ on purpose: a
+  // conversation turn ends after 15s *without progress* so a stuck request
+  // can never leave the user staring at 「考え中」 — the reason is shown and
+  // the turn ends. The connection test keeps the patient 90s budget for its
+  // retries and model switching.
+  function askBrain(userText,opts){
+    opts=opts||{};
+    var isTest=!!opts.test;
+    // The conversation limit is an INACTIVITY limit, not a total limit:
+    // while a streamed reply keeps arriving, each chunk re-arms the 15s
+    // timer (90s absolute cap), so a long reply is never cut off
+    // mid-sentence. A flat 15s total cap did exactly that — the streamed
+    // text vanished and was replaced by an error plus the local fallback,
+    // which read as "it starts answering, then fails".
+    var timeoutMs= isTest?90000:15000;
+    return new Promise(function(resolve,reject){
+      var settled=false, timer=null, startedAt=Date.now();
+      function arm(){
+        if(timer) clearTimeout(timer);
+        timer=setTimeout(function(){
+          if(settled) return; settled=true;
+          var e=new Error('timeout'); e.code='TIMEOUT'; reject(e);
+        },timeoutMs);
+      }
+      arm();
+      var callOpts={};
+      for(var k in opts) callOpts[k]=opts[k];
+      if(opts.onChunk && !isTest){
+        callOpts.onChunk=function(full){
+          if(Date.now()-startedAt<90000) arm();
+          opts.onChunk(full);
+        };
+      }
+      Promise.resolve().then(function(){ return callBrain(userText,callOpts); }).then(function(txt){
+        if(settled) return; settled=true; clearTimeout(timer); resolve(txt);
+      },function(err){
+        if(settled) return; settled=true; clearTimeout(timer); reject(err);
+      });
+    });
+  }
+  function respond(userText){
+    if(busy){ addMsg('mugi','前の質問への返答を待っています。返答が来てから、もう一度送ってください。'); return; }
+    if(/ブリーフィング|報告して/.test(userText)){ setState('thinking','THINKING','考え中…'); setTimeout(doBriefing,300); return; }
+    if(/止めて|静かに|ストップ/.test(userText)){ if('speechSynthesis' in window) speechSynthesis.cancel(); addMsg('mugi','読み上げを止めました。'); setState('idle','STANDBY','待機中 — お呼びください'); return; }
+    if(!activeKey()){
+      setState('thinking','THINKING','考え中…');
+      setTimeout(function(){ var reply=generateResponse(userText); addMsg('mugi',reply); speak(reply); },420);
+      return;
+    }
+    busy=true; setState('thinking','THINKING','頭脳に聞いています…');
+    var pending=addMsg('mugi','考え中です…（'+PROVIDERS[brain.provider].label+' に聞いています）');
+    pending.classList.add('thinking');
+    var streamed=false, speakBuf='', spokenUpTo=0;
+    // Streaming (Gemini): render each chunk into the pending bubble as it
+    // arrives, and speak sentence by sentence so the voice starts on the
+    // first sentence instead of waiting for the whole reply.
+    function flushSpeech(final){
+      if(!ttsEnabled || !('speechSynthesis' in window)) return;
+      var rest=speakBuf.slice(spokenUpTo);
+      var cut=-1;
+      if(final){ if(rest.trim()) cut=rest.length; }
+      else {
+        var m=rest.match(/^[\s\S]*?[。！？!?…\n]/);
+        if(m) cut=m[0].length;
+      }
+      if(cut>0){
+        var sentence=rest.slice(0,cut).trim();
+        spokenUpTo+=cut;
+        if(sentence) speak(sentence,true);
+      }
+    }
+    var askOpts={ onChunk:function(fullText){
+      streamed=true;
+      pending.classList.remove('thinking');
+      updateMsg(pending,fullText);
+      speakBuf=fullText;
+      flushSpeech(false);
+    }};
+    askBrain(userText,askOpts).then(function(reply){
+      busy=false;
+      history.push({role:'user',text:userText}); history.push({role:'assistant',text:reply});
+      if(history.length>20) history=history.slice(-20);
+      pending.classList.remove('thinking');
+      updateMsg(pending,reply);
+      if(streamed){ speakBuf=reply; flushSpeech(true); }
+      else speak(reply);
+    }).catch(function(err){
+      busy=false;
+      pending.classList.remove('thinking');
+      var reply=generateResponse(userText);
+      // The log keeps the API's raw response body verbatim (via friendlyError)
+      // so the failure cause can be traced; only the short local reply is spoken.
+      updateMsg(pending,'頭脳への接続でエラーが出たので、ローカル応答に切り替えました。\n理由：'+friendlyError(err)+'\n―― ローカル応答：'+reply); speak(reply);
+    });
+  }
+  function doBriefing(){
+    var d=nowTokyo(); var g=greetingWord();
+    var w= weatherData ? '福井市は '+weatherData.cond+'、現在 '+weatherData.temp+'度。最高 '+weatherData.max+'度、最低 '+weatherData.min+'度です。' : '天気は取得できませんでした。';
+    var text=g+'、Nakayamaさん。ブリーフィングです。今日は '+(d.getMonth()+1)+'月'+d.getDate()+'日、'+weekdayJa(d)+'。現在時刻は '+d.getHours()+'時'+d.getMinutes()+'分 です。'+w+'システムは正常に待機しています。今日も良い一日を。';
+    addMsg('mugi',text); speak(text);
+  }
+  document.getElementById('briefBtn').addEventListener('click',function(){ unlockAudio(); doBriefing(); });
+
+  // ---- Input ----
+  var inputForm=document.getElementById('inputForm');
+  inputForm.addEventListener('submit',function(e){
+    e.preventDefault(); unlockAudio(); var v=textInput.value.trim(); if(!v) return;
+    textInput.value=''; addMsg('user',v);
+    // Keep focus in the field so the iOS keyboard stays open for the next message.
+    try{ textInput.focus(); }catch(fe){}
+    try{ respond(v); }catch(err){ addMsg('mugi','送信の処理でエラーが発生しました。もう一度お試しください。'); setState('idle','STANDBY','待機中 — お呼びください'); }
+  });
+  // Tapping the bar's padding/chrome (not a button) also focuses the field.
+  inputForm.addEventListener('click',function(e){ if(e.target===inputForm) textInput.focus(); });
+  textInput.addEventListener('focus',function(){
+    setTimeout(function(){ fitViewport(); logEl.scrollTop=logEl.scrollHeight; },350);
+  });
+
+  // ---- Speech Recognition ----
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  var sysVoiceIn=document.getElementById('sysVoiceIn');
+  var interimLine=document.getElementById('interimLine');
+  var REC_ERRORS={
+    'not-allowed':'マイクの使用が許可されませんでした。アプリ内ブラウザで開いている場合、マイク権限がこの画面に渡らないため音声入力は使えません（コンソールの故障ではありません）。Safariで直接開くか、下の入力欄でiPhoneキーボードのマイク（音声入力）を使ってください。Safariで開いている場合は「設定」→「Safari」→「マイク」の許可を確認してください。',
+    'service-not-allowed':'音声認識サービスがこの開き方では許可されていません。アプリ内ブラウザ（WebView）表示では音声認識がブロックされるためです。Safariで直接開くか、入力欄でiPhoneキーボードのマイク（音声入力）をお使いください。',
+    'no-speech':'声が聞き取れませんでした。静かな場所で、もう少しはっきり話してもう一度マイクを押してください。',
+    'audio-capture':'マイクが見つかりませんでした。他のアプリがマイクを使っていないか確認してください。',
+    'network':'通信エラーで音声認識が止まりました。ネット接続を確認して、もう一度お試しください。',
+    'aborted':'聞き取りが中断されました。もう一度マイクを押すと再開できます。',
+    'language-not-supported':'この環境では日本語の音声認識に対応していませんでした。'
+  };
+  // ---- Mic feedback guarantee: every tap produces a visible reaction ----
+  var voiceGuide=document.getElementById('voiceGuide');
+  function showVoiceGuide(){
+    if(voiceGuide) voiceGuide.classList.add('open');
+    addMsg('mugi','この開き方では音声入力が使えません。①Safariで開き直す ②文字入力欄でiPhoneキーボードのマイク（音声入力）を使う、のどちらかで話せます。');
+  }
+  function hideVoiceGuide(){ if(voiceGuide) voiceGuide.classList.remove('open'); }
+  var vgClose=document.getElementById('voiceGuideClose');
+  if(vgClose) vgClose.addEventListener('click',function(){ hideVoiceGuide(); textInput.focus(); });
+  if(voiceGuide) voiceGuide.addEventListener('click',function(e){ if(e.target===voiceGuide) hideVoiceGuide(); });
+  var rec=null, srUsable=false, srWatchdog=null, srGotResult=false, srErrorShown=false, srStarted=false, srIntentionalStop=false, srStarting=false;
+  var srEndTimer=null, srSilenceTimer=null, srSession=0, srSilenceStopped=false;
+  var micTapHandler=null;
+  function srResetButton(){ isListening=false; srStarting=false; micBtn.classList.remove('listening'); micBtn.classList.remove('starting'); micBtn.textContent='🎙'; }
+  function clearSrTimers(){
+    if(srEndTimer){ clearTimeout(srEndTimer); srEndTimer=null; }
+    if(srSilenceTimer){ clearTimeout(srSilenceTimer); srSilenceTimer=null; }
+  }
+  function srFail(message,showGuide){
+    if(srWatchdog){ clearTimeout(srWatchdog); srWatchdog=null; }
+    clearSrTimers();
+    srResetButton(); interimLine.textContent='';
+    setState('idle','STANDBY','待機中 — お呼びください');
+    if(message) addMsg('mugi',message);
+    if(showGuide) showVoiceGuide();
+  }
+  // Single exit point for the listening UI. iOS Safari's recognition does
+  // not reliably fire onend (see forceReleaseMic), so onend and the
+  // force-release timer both funnel here; running it twice is harmless.
+  function finishListening(){
+    if(srWatchdog){ clearTimeout(srWatchdog); srWatchdog=null; }
+    clearSrTimers();
+    var wasActive=isListening||srStarted;
+    srResetButton(); interimLine.textContent='';
+    if(wasActive && !srGotResult && !srErrorShown && !srIntentionalStop){
+      addMsg('mugi','聞き取りが終わりましたが、声が入りませんでした。もう一度マイクを押して、はっきり話してみてください。');
+    } else if(wasActive && !srGotResult && !srErrorShown && srSilenceStopped){
+      addMsg('mugi','うまく聞き取れなかったので、聞き取りを終えました。もう一度マイクを押して話してください。');
+    }
+    srStarted=false; srIntentionalStop=false; srSilenceStopped=false;
+    if(coreWrap.className.indexOf('speaking')===-1 && coreWrap.className.indexOf('thinking')===-1) setState('idle','STANDBY','待機中 — お呼びください');
+  }
+  // iOS Safari often never fires onend after stop() — and sometimes not
+  // after a final result either — leaving the mic hot and the button red
+  // forever, and (because the audio session stays in record mode) the
+  // reply speech inaudible. If onend has not arrived ~1.3s after we asked
+  // recognition to stop, release everything ourselves.
+  function forceReleaseMic(){
+    if(srEndTimer) clearTimeout(srEndTimer);
+    var sess=srSession;
+    srEndTimer=setTimeout(function(){
+      srEndTimer=null;
+      if(sess!==srSession) return;
+      if(isListening||srStarted){ try{ rec.abort(); }catch(e){} finishListening(); }
+    },1300);
+  }
+  function stopRecognition(){
+    srIntentionalStop=true;
+    try{ rec.stop(); }catch(e){}
+    forceReleaseMic();
+  }
+  // The user finished talking but only interim results arrived and the
+  // session hangs: end it a few seconds after the last result event.
+  function armSilenceTimer(){
+    if(srSilenceTimer) clearTimeout(srSilenceTimer);
+    srSilenceTimer=setTimeout(function(){
+      srSilenceTimer=null;
+      if(isListening && !srGotResult){ srSilenceStopped=true; stopRecognition(); }
+    },4000);
+  }
+  try{
+    if(SR){ rec=new SR(); rec.lang='ja-JP'; rec.interimResults=true; rec.continuous=false; srUsable=true; }
+  }catch(e){ rec=null; srUsable=false; }
+  if(srUsable){
+    sysVoiceIn.textContent='READY';
+    rec.onstart=function(){
+      if(srWatchdog){ clearTimeout(srWatchdog); srWatchdog=null; }
+      srSession++; clearSrTimers(); srSilenceStopped=false;
+      srStarted=true; srStarting=false; isListening=true;
+      micBtn.classList.remove('starting'); micBtn.classList.add('listening'); micBtn.textContent='●';
+      interimLine.textContent='▶ 聞き取り中… 話してください';
+      setState('listening','LISTENING','聞き取り中 — 話してください');
+    };
+    rec.onresult=function(ev){
+      var interim='', finalTxt='';
+      for(var i=ev.resultIndex;i<ev.results.length;i++){
+        if(ev.results[i].isFinal) finalTxt+=ev.results[i][0].transcript;
+        else interim+=ev.results[i][0].transcript;
+      }
+      if(interim) interimLine.textContent='▶ '+interim;
+      if(finalTxt){
+        srGotResult=true; interimLine.textContent='';
+        // Release the mic BEFORE replying. Do not rely on the browser to
+        // end the session after a final result — iOS Safari often leaves
+        // it running (mic stays red), and no reply speech can be heard
+        // while the record session stays open.
+        stopRecognition();
+        addMsg('user',finalTxt); try{ respond(finalTxt); }catch(err){ addMsg('mugi','送信の処理でエラーが発生しました。もう一度お試しください。'); }
+      } else if(interim){
+        armSilenceTimer();
+      }
+    };
+    rec.onend=function(){ finishListening(); };
+    rec.onerror=function(ev){
+      srErrorShown=true;
+      var code=(ev && ev.error) ? ev.error : 'unknown';
+      var reason=REC_ERRORS[code]||('音声認識でエラーが発生しました（'+code+'）。もう一度お試しください。');
+      srFail(reason, code==='not-allowed'||code==='service-not-allowed');
+    };
+    var onMicTap=function(){
+      unlockAudio();
+      if(isListening){ stopRecognition(); return; }
+      // A start is already in flight (onstart not fired yet): a second tap
+      // here would make rec.start() throw InvalidStateError and wrongly
+      // dump the user into the "voice input unavailable" guide.
+      if(srStarting) return;
+      srStarting=true;
+      // Immediate visible feedback the moment the button is tapped — never silent.
+      srGotResult=false; srErrorShown=false; srStarted=false; srIntentionalStop=false;
+      micBtn.classList.add('starting'); micBtn.textContent='…';
+      interimLine.textContent='▶ マイクを起動しています…';
+      setState('listening','STARTING','マイクを起動しています…');
+      if('speechSynthesis' in window) speechSynthesis.cancel();
+      try{ rec.start(); }catch(e){
+        srFail('音声認識を開始できませんでした。',true);
+        return;
+      }
+      // Watchdog: some webviews accept start() but never fire onstart/onerror.
+      if(srWatchdog) clearTimeout(srWatchdog);
+      srWatchdog=setTimeout(function(){
+        srWatchdog=null;
+        if(!srStarted && !isListening){
+          try{ rec.stop(); }catch(e){}
+          srFail('音声認識が始まりませんでした。この開き方では音声入力が使えない可能性があります。',true);
+        }
+      },2000);
+    };
+    micBtn.addEventListener('click',onMicTap);
+    micTapHandler=onMicTap;
+  } else {
+    sysVoiceIn.textContent='制限あり';
+    micBtn.classList.add('unavailable'); micBtn.title='この開き方では音声入力に未対応です';
+    document.getElementById('fallbackNotice').innerHTML='<div class="notice">🎙 この開き方では音声入力が使えません。<b>理由：アプリ内ブラウザ表示ではマイク権限がこの画面に渡らないためです</b>（故障ではありません）。①<b>Safariで開き直す</b>（共有メニューから開く／ホーム画面に追加して開く）②<b>文字入力欄でiPhoneキーボードのマイク（音声入力）を使う</b>、のどちらかで話せます。文字入力はいつでも使えます。</div>';
+    micBtn.addEventListener('click',function(){ unlockAudio(); showVoiceGuide(); });
+    micTapHandler=function(){ unlockAudio(); showVoiceGuide(); };
+  }
+  // The central core is the primary talk button: tapping it (or the mic
+  // button) toggles listening, so the big orb itself reacts to the tap.
+  coreWrap.addEventListener('click',function(){ if(micTapHandler) micTapHandler(); });
+  var coreOrb=document.getElementById('coreOrb');
+  if(coreOrb) coreOrb.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); if(micTapHandler) micTapHandler(); } });
+
+  // ---- Settings modal ----
+  var modal=document.getElementById('settingsModal'), providerSelect=document.getElementById('providerSelect'),
+      modelInput=document.getElementById('modelInput'), modelPreset=document.getElementById('modelPreset'), testResult=document.getElementById('testResult');
+  var keyInputs={gemini:document.getElementById('keyGemini'), openai:document.getElementById('keyOpenai'), claude:document.getElementById('keyClaude')};
+  var prevProvider=brain.provider;
+  var fetchModelsBtn=document.getElementById('fetchModelsBtn'), modelFetchStatus=document.getElementById('modelFetchStatus');
+  function populateGeminiPreset(){
+    modelPreset.innerHTML='';
+    if(!brain.geminiModels.length){
+      var o0=document.createElement('option'); o0.value=''; o0.textContent='（未取得 — 「モデル一覧を取得」か保存時の自動取得をお待ちください）'; modelPreset.appendChild(o0);
+      modelPreset.value='';
+      return;
+    }
+    sortGeminiModels(brain.geminiModels).forEach(function(m,i){
+      var o=document.createElement('option'); o.value=m;
+      o.textContent=m+(m===pickDefaultGeminiModel(brain.geminiModels)?'（推奨・応答が速いflash）':'');
+      modelPreset.appendChild(o);
+    });
+    modelPreset.value= brain.geminiModels.indexOf(brain.models.gemini)!==-1 ? brain.models.gemini : pickDefaultGeminiModel(brain.geminiModels);
+    if(modelPreset.value) brain.models.gemini=modelPreset.value;
+  }
+  function refreshProviderHints(){
+    var p=providerSelect.value;
+    document.getElementById('providerHint').textContent=PROVIDERS[p].hint;
+    document.getElementById('corsNote').textContent=PROVIDERS[p].cors;
+    var presetLabel=document.getElementById('modelPresetLabel'), inputLabel=document.getElementById('modelInputLabel');
+    if(modelFetchStatus){ modelFetchStatus.textContent=''; modelFetchStatus.className='test-result'; }
+    if(p==='gemini'){
+      // Gemini: the dropdown IS the model choice — filled only with real
+      // models returned for this key. Free-text model names are not offered.
+      if(presetLabel) presetLabel.textContent='モデル（このキーで使える実在モデルのみ）';
+      if(inputLabel) inputLabel.style.display='none';
+      modelInput.style.display='none';
+      if(fetchModelsBtn) fetchModelsBtn.style.display='block';
+      populateGeminiPreset();
+      modelInput.value=brain.models.gemini||'';
+      return;
+    }
+    if(presetLabel) presetLabel.textContent='モデル候補（プリセット）';
+    if(inputLabel) inputLabel.style.display='';
+    modelInput.style.display='';
+    if(fetchModelsBtn) fetchModelsBtn.style.display='none';
+    modelInput.value=brain.models[p];
+    modelPreset.innerHTML='';
+    PROVIDERS[p].presets.forEach(function(m,i){
+      var o=document.createElement('option'); o.value=m; o.textContent=m+(i===0?'（推奨）':''); modelPreset.appendChild(o);
+    });
+    var custom=document.createElement('option'); custom.value=''; custom.textContent='（候補にないモデルは下の欄に直接入力）'; modelPreset.appendChild(custom);
+    modelPreset.value= PROVIDERS[p].presets.indexOf(brain.models[p])!==-1 ? brain.models[p] : '';
+  }
+  function runGeminiModelFetch(keyVal){
+    if(modelFetchStatus){ modelFetchStatus.className='test-result'; modelFetchStatus.textContent='モデル一覧を取得中…（GET /v1beta/models）'; }
+    return fetchGeminiModels(keyVal).then(function(ids){
+      populateGeminiPreset();
+      modelInput.value=brain.models.gemini||'';
+      if(modelFetchStatus){
+        modelFetchStatus.className='test-result ok';
+        modelFetchStatus.textContent='取得できました。このキーで generateContent が使えるモデルは '+ids.length+' 件です。選択中：'+(brain.models.gemini||'なし');
+      }
+      return ids;
+    }).catch(function(err){
+      if(modelFetchStatus){
+        modelFetchStatus.className='test-result ng';
+        modelFetchStatus.textContent='モデル一覧を取得できませんでした。'+friendlyError(err);
+      }
+      throw err;
+    });
+  }
+  if(fetchModelsBtn) fetchModelsBtn.addEventListener('click',function(){
+    var k=(keyInputs.gemini.value||'').trim();
+    if(!k){ if(modelFetchStatus){ modelFetchStatus.className='test-result ng'; modelFetchStatus.textContent='先に Gemini のAPIキーを上の欄に入れてください。'; } return; }
+    runGeminiModelFetch(k).catch(function(){});
+  });
+  modelPreset.addEventListener('change',function(){ if(modelPreset.value) modelInput.value=modelPreset.value; });
+  modelInput.addEventListener('input',function(){
+    var p=providerSelect.value;
+    modelPreset.value= PROVIDERS[p].presets.indexOf(modelInput.value.trim())!==-1 ? modelInput.value.trim() : '';
+  });
+  function openSettings(){
+    providerSelect.value=brain.provider; prevProvider=brain.provider;
+    for(var k in keyInputs) keyInputs[k].value=brain.keys[k]||'';
+    testResult.textContent=''; testResult.className='test-result';
+    refreshProviderHints();
+    modal.classList.add('open');
+    // Gemini with a saved key but no confirmed model list yet: fetch it now
+    // so the dropdown only ever shows models this key can really use.
+    if(brain.provider==='gemini' && (brain.keys.gemini||'').trim() && !brain.geminiModels.length){
+      runGeminiModelFetch(brain.keys.gemini).catch(function(){});
+    }
+  }
+  function closeSettings(){ modal.classList.remove('open'); }
+  document.getElementById('settingsBtn').addEventListener('click',openSettings);
+  document.getElementById('cancelSettings').addEventListener('click',closeSettings);
+  modal.addEventListener('click',function(e){ if(e.target===modal) closeSettings(); });
+  providerSelect.addEventListener('change',function(){
+    brain.models[prevProvider]=modelInput.value.trim()||PROVIDERS[prevProvider].defModel;
+    prevProvider=providerSelect.value;
+    refreshProviderHints();
+  });
+  document.getElementById('saveSettings').addEventListener('click',function(){
+    brain.provider=providerSelect.value;
+    for(var k in keyInputs) brain.keys[k]=keyInputs[k].value.trim();
+    if(brain.provider==='gemini'){
+      // The dropdown selection is the model; never a typed/guessed name.
+      if(modelPreset.value) brain.models.gemini=modelPreset.value;
+      else if(modelInput.value.trim()) brain.models.gemini=modelInput.value.trim();
+    } else {
+      brain.models[brain.provider]=modelInput.value.trim()||PROVIDERS[brain.provider].defModel;
+    }
+    saveBrain(); updateBrainUI();
+    if(!activeKey()){
+      testResult.className='test-result ng';
+      testResult.textContent='使う頭脳（'+PROVIDERS[brain.provider].label+'）のキーが空です。そのキーを入れると接続できます。入力した他のキーは保存されました。';
+      return;
+    }
+    function runConnectionTest(){
+      testResult.className='test-result'; testResult.textContent='接続テスト中…（モデル：'+brain.models[brain.provider]+'）';
+      askBrain('むぎ、聞こえますか。聞こえたら一言で答えてください。',{test:true}).then(function(){
+        modelInput.value=brain.models[brain.provider];
+        if(brain.provider==='gemini') populateGeminiPreset();
+        else modelPreset.value= PROVIDERS[brain.provider].presets.indexOf(brain.models[brain.provider])!==-1 ? brain.models[brain.provider] : '';
+        testResult.className='test-result ok';
+        testResult.textContent='接続できました。'+PROVIDERS[brain.provider].label+'（モデル：'+brain.models[brain.provider]+'）の頭脳で自由に会話できます。';
+        setTimeout(closeSettings,1400);
+      }).catch(function(err){
+        testResult.className='test-result ng';
+        testResult.textContent='接続できませんでした。'+friendlyError(err)+' キーと設定は保存されています。';
+      });
+    }
+    if(brain.provider==='gemini'){
+      // Before testing, confirm the model against the key's REAL model list.
+      // If the list cannot be fetched, do not fire a guessed generateContent
+      // call — show the list error's raw body instead.
+      testResult.className='test-result'; testResult.textContent='キーで使えるモデル一覧を確認中…（GET /v1beta/models）';
+      runGeminiModelFetch(activeKey()).then(function(){
+        modelInput.value=brain.models.gemini||'';
+        runConnectionTest();
+      }).catch(function(err){
+        testResult.className='test-result ng';
+        testResult.textContent='モデル一覧の取得で止まりました。推測したモデル名では送信しません。'+friendlyError(err)+' キーと設定は保存されています。';
+      });
+      return;
+    }
+    runConnectionTest();
+  });
+  document.getElementById('clearKey').addEventListener('click',function(){
+    for(var k in brain.keys) brain.keys[k]='';
+    for(var k2 in keyInputs) keyInputs[k2].value='';
+    saveBrain(); updateBrainUI();
+    testResult.className='test-result'; testResult.textContent='キーをすべて削除しました。ローカル応答で動きます。';
+  });
+  updateBrainUI();
+
+  // initial greeting
+  setTimeout(function(){
+    var hello=greetingWord()+'、Nakayamaさん。むぎコンソール、起動しました。マイクを押して話しかけるか、下の欄に入力してください。「ブリーフィング」と言うと、天気と時刻をまとめて報告します。'
+      +(activeKey()? '頭脳は '+PROVIDERS[brain.provider].label+' に接続済みです。自由に話しかけてください。' : '設定（右上の歯車）からAPIキーを入れると、自由に会話できるようになります。');
+    addMsg('mugi',hello);
+    speak(hello);
+  },600);
+})();
+</script>
+</body>
+</html>
